@@ -11,9 +11,12 @@ public class ItalicTagHandler implements TagHandler {
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         RPr rPr = RunUtils.getCurrentRPr(wordMLPackage);
-        if (rPr != null) {
-            rPr.setI(RunUtils.createBooleanDefaultTrue());
-            rPr.setICs(RunUtils.createBooleanDefaultTrue());
-        }
+        rPr.setI(RunUtils.createBooleanDefaultTrue());
+        rPr.setICs(RunUtils.createBooleanDefaultTrue());
+    }
+
+    @Override
+    public boolean isRepeatable() {
+        return true;
     }
 }

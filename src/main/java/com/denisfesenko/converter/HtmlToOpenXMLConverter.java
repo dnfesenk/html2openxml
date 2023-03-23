@@ -9,9 +9,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.NodeVisitor;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A converter that converts HTML content to OpenXML format.
@@ -19,7 +19,7 @@ import java.util.Map;
 public class HtmlToOpenXMLConverter {
 
     private final Map<String, TagHandler> tagHandlerMap;
-    private final Deque<TagHandler> tagHandlers;
+    private final Set<TagHandler> tagHandlers;
 
     /**
      * Default constructor. Initializes the converter with default tag handlers.
@@ -38,7 +38,7 @@ public class HtmlToOpenXMLConverter {
         if (customTagHandlerMap != null) {
             tagHandlerMap.putAll(customTagHandlerMap);
         }
-        tagHandlers = new ArrayDeque<>();
+        tagHandlers = new LinkedHashSet<>();
     }
 
     /**
@@ -67,33 +67,25 @@ public class HtmlToOpenXMLConverter {
             public void head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (tagHandler != null) {
-                    tagHandlers.push(tagHandler);
+                    if (tagHandler instanceof TextTagHandler) {
+                        tagHandlers.forEach(handler -> handler.handleTag(node, wordMLPackage));
+                        tagHandler.handleTag(node, wordMLPackage);
+                    } else if (tagHandler.isRepeatable()) {
+                        tagHandlers.add(tagHandler);
+                    } else {
+                        tagHandler.handleTag(node, wordMLPackage);
+                    }
                 }
             }
 
             @Override
             public void tail(Node node, int depth) {
+                TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (!tagHandlers.isEmpty()) {
-                    TagHandler tagHandler = tagHandlers.pop();
-                    handleTagAndClearTextTagHandlers(node, wordMLPackage, tagHandler);
-                    tagHandler.handleTag(node, wordMLPackage);
+                    tagHandlers.remove(tagHandler);
                 }
             }
         });
     }
 
-    /**
-     * Handles the current HTML node and clears the tag handlers if the current tag handler is an instance of TextTagHandler.
-     *
-     * @param node          the HTML node to be processed
-     * @param wordMLPackage the WordprocessingMLPackage that will store the converted content
-     * @param tagHandler    the current tag handler
-     */
-    private void handleTagAndClearTextTagHandlers(Node node, WordprocessingMLPackage wordMLPackage, TagHandler tagHandler) {
-        if (tagHandler instanceof TextTagHandler) {
-            while (!tagHandlers.isEmpty()) {
-                tagHandlers.pop().handleTag(node, wordMLPackage);
-            }
-        }
-    }
 }

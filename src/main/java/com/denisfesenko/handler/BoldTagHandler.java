@@ -11,9 +11,12 @@ public class BoldTagHandler implements TagHandler {
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         RPr rPr = RunUtils.getCurrentRPr(wordMLPackage);
-        if (rPr != null) {
-            rPr.setB(RunUtils.createBooleanDefaultTrue());
-            rPr.setBCs(RunUtils.createBooleanDefaultTrue());
-        }
+        rPr.setB(RunUtils.createBooleanDefaultTrue());
+        rPr.setBCs(RunUtils.createBooleanDefaultTrue());
+    }
+
+    @Override
+    public boolean isRepeatable() {
+        return true;
     }
 }

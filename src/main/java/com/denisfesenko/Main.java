@@ -8,7 +8,7 @@ import java.io.File;
 public class Main {
 
     public static void main(String[] args) {
-        String html = "<p>Hello, <b>World</b>! This is an <i>example</i> of <b><i>mixed</i> formatting</b>.</p>";
+        String html = "<p>Hello, <b>World</b>! This is an <span style=\"background-color: rgb(255, 0, 0);\"><i>example</i> of <b><i>mixed</i></span> formatting</b>.</p>";
 
         try {
             HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter();

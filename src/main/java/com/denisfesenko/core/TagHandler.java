@@ -5,4 +5,6 @@ import org.jsoup.nodes.Node;
 
 public interface TagHandler {
     void handleTag(Node node, WordprocessingMLPackage wordMLPackage);
+
+    boolean isRepeatable();
 }
