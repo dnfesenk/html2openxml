@@ -8,6 +8,7 @@ import org.docx4j.wml.R;
 import org.docx4j.wml.RPr;
 
 import java.util.List;
+import java.util.function.Function;
 
 public final class RunUtils {
 
@@ -65,14 +66,16 @@ public final class RunUtils {
     }
 
     private static P createAndAddParagraph(WordprocessingMLPackage wordMLPackage) {
-        P paragraph = OBJECT_FACTORY.createP();
-        wordMLPackage.getMainDocumentPart().getContent().add(paragraph);
-        return paragraph;
+        return createAndAddElement(wordMLPackage.getMainDocumentPart().getContent(), ObjectFactory::createP);
     }
 
     private static R createAndAddRun(P paragraph) {
-        R run = OBJECT_FACTORY.createR();
-        paragraph.getContent().add(run);
-        return run;
+        return createAndAddElement(paragraph.getContent(), ObjectFactory::createR);
+    }
+
+    private static <T> T createAndAddElement(List<Object> contentList, Function<ObjectFactory, T> factoryMethod) {
+        T element = factoryMethod.apply(OBJECT_FACTORY);
+        contentList.add(element);
+        return element;
     }
 }

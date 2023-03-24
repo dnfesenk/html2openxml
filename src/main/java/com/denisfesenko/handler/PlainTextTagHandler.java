@@ -7,7 +7,7 @@ import org.docx4j.wml.Text;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 
-public class TextTagHandler implements TagHandler {
+public class PlainTextTagHandler implements TagHandler {
 
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
@@ -16,7 +16,6 @@ public class TextTagHandler implements TagHandler {
         text.setValue(nodeText);
         text.setSpace("preserve");
         RunUtils.getCurrentRun(wordMLPackage).getContent().add(text);
-        RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
     }
 
     @Override

@@ -2,14 +2,16 @@ package com.denisfesenko.converter;
 
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.core.TagHandlerFactory;
-import com.denisfesenko.handler.TextTagHandler;
+import com.denisfesenko.handler.PlainTextTagHandler;
+import com.denisfesenko.util.RunUtils;
+import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.NodeVisitor;
 
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,7 +40,7 @@ public class HtmlToOpenXMLConverter {
         if (customTagHandlerMap != null) {
             tagHandlerMap.putAll(customTagHandlerMap);
         }
-        tagHandlers = new LinkedHashSet<>();
+        tagHandlers = new HashSet<>();
     }
 
     /**
@@ -46,9 +48,9 @@ public class HtmlToOpenXMLConverter {
      *
      * @param html the HTML content to be converted
      * @return a WordprocessingMLPackage containing the converted content
-     * @throws Exception if there is an issue during the conversion process
+     * @throws InvalidFormatException if there is an issue during the conversion process
      */
-    public WordprocessingMLPackage convert(String html) throws Exception {
+    public WordprocessingMLPackage convert(String html) throws InvalidFormatException {
         WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.createPackage();
         Document document = Jsoup.parseBodyFragment(html);
         traverseDocument(document, wordMLPackage);
@@ -67,7 +69,8 @@ public class HtmlToOpenXMLConverter {
             public void head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (tagHandler != null) {
-                    if (tagHandler instanceof TextTagHandler) {
+                    if (tagHandler instanceof PlainTextTagHandler) {
+                        RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
                         tagHandlers.forEach(handler -> handler.handleTag(node, wordMLPackage));
                         tagHandler.handleTag(node, wordMLPackage);
                     } else if (tagHandler.isRepeatable()) {
@@ -87,5 +90,4 @@ public class HtmlToOpenXMLConverter {
             }
         });
     }
-
 }
