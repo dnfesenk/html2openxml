@@ -11,7 +11,6 @@ import org.docx4j.wml.Tbl;
 import org.docx4j.wml.TblWidth;
 import org.docx4j.wml.Tc;
 import org.docx4j.wml.Tr;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
@@ -70,11 +69,9 @@ public class TableHandler implements TagHandler {
                 d++;
                 List<Object> tempContent = new ArrayList<>(wordMLPackage.getMainDocumentPart().getContent());
                 wordMLPackage.getMainDocumentPart().getContent().clear();
-                converter.traverseDocument(Jsoup.parseBodyFragment(tblCol.getContent()), wordMLPackage);
-                column.getContent().clear();
-                column.getContent().addAll(wordMLPackage.getMainDocumentPart().getContent());
-                wordMLPackage.getMainDocumentPart().getContent().clear();
-                wordMLPackage.getMainDocumentPart().getContent().addAll(tempContent);
+                converter.convert(tblCol.getContent(), wordMLPackage);
+                ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
+                ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
             }
         }
         return table;

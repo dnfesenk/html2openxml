@@ -6,6 +6,7 @@ import org.docx4j.wml.Tbl;
 import org.jsoup.nodes.Node;
 
 import java.math.BigInteger;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,5 +57,10 @@ public class ConverterUtils {
         ctTblLook.setLastColumn(STOnOff.ZERO);
         ctTblLook.setNoHBand(STOnOff.ZERO);
         ctTblLook.setNoVBand(STOnOff.ONE);
+    }
+
+    public static <T> void replaceListContent(List<T> targetList, List<T> sourceList) {
+        targetList.clear();
+        targetList.addAll(sourceList);
     }
 }

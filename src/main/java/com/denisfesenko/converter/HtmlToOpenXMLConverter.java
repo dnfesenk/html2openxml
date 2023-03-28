@@ -53,6 +53,17 @@ public class HtmlToOpenXMLConverter {
      */
     public WordprocessingMLPackage convert(String html) throws InvalidFormatException {
         WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.createPackage();
+        return convert(html, wordMLPackage);
+    }
+
+    /**
+     * Converts the given HTML content into a WordprocessingMLPackage.
+     *
+     * @param html           The input HTML content as a string.
+     * @param wordMLPackage  The WordprocessingMLPackage instance to populate with the converted content.
+     * @return The modified WordprocessingMLPackage containing the converted content from the input HTML.
+     */
+    public WordprocessingMLPackage convert(String html, WordprocessingMLPackage wordMLPackage) {
         Document document = Jsoup.parseBodyFragment(html);
         traverseDocument(document, wordMLPackage);
         return wordMLPackage;
@@ -64,7 +75,7 @@ public class HtmlToOpenXMLConverter {
      * @param document      the HTML document to be traversed
      * @param wordMLPackage the WordprocessingMLPackage that will store the converted content
      */
-    public void traverseDocument(Document document, WordprocessingMLPackage wordMLPackage) {
+    private void traverseDocument(Document document, WordprocessingMLPackage wordMLPackage) {
         document.traverse(new NodeVisitor() {
             @Override
             public void head(Node node, int depth) {
