@@ -1,6 +1,6 @@
 package com.denisfesenko.converter.handler;
 
-import com.denisfesenko.handler.PlainTextTagHandler;
+import com.denisfesenko.handler.PlainTextHandler;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -15,12 +15,12 @@ class PlainTextHandlerTest {
     @Test
     void handleTag_appliesPlainText() throws InvalidFormatException {
         // Arrange
-        PlainTextTagHandler plainTextTagHandler = new PlainTextTagHandler();
+        PlainTextHandler plainTextHandler = new PlainTextHandler();
         TextNode plainTextNode = new TextNode("Plain text");
         WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.createPackage();
 
         // Act
-        plainTextTagHandler.handleTag(plainTextNode, wordMLPackage);
+        plainTextHandler.handleTag(plainTextNode, wordMLPackage);
 
         // Assert
         RPr rPr = RunUtils.getCurrentRPr(wordMLPackage);

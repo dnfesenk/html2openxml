@@ -2,7 +2,8 @@ package com.denisfesenko.converter;
 
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.core.TagHandlerFactory;
-import com.denisfesenko.handler.PlainTextTagHandler;
+import com.denisfesenko.handler.PlainTextHandler;
+import com.denisfesenko.handler.TableHandler;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -63,16 +64,19 @@ public class HtmlToOpenXMLConverter {
      * @param document      the HTML document to be traversed
      * @param wordMLPackage the WordprocessingMLPackage that will store the converted content
      */
-    private void traverseDocument(Document document, WordprocessingMLPackage wordMLPackage) {
+    public void traverseDocument(Document document, WordprocessingMLPackage wordMLPackage) {
         document.traverse(new NodeVisitor() {
             @Override
             public void head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (tagHandler != null) {
-                    if (tagHandler instanceof PlainTextTagHandler) {
+                    if (tagHandler instanceof PlainTextHandler) {
                         RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
                         tagHandlers.forEach(handler -> handler.handleTag(node, wordMLPackage));
                         tagHandler.handleTag(node, wordMLPackage);
+                    } else if (tagHandler instanceof TableHandler) {
+                        ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage);
+                        node.remove(); //prevent of second convert
                     } else if (tagHandler.isRepeatable()) {
                         tagHandlers.add(tagHandler);
                     } else {

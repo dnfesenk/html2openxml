@@ -7,7 +7,7 @@ import org.docx4j.wml.Text;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 
-public class PlainTextTagHandler implements TagHandler {
+public class PlainTextHandler implements TagHandler {
 
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {

@@ -1,6 +1,6 @@
 package com.denisfesenko.converter.handler;
 
-import com.denisfesenko.handler.UnderlineTagHandler;
+import com.denisfesenko.handler.UnderlineHandler;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -11,17 +11,17 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class UnderlineTagHandlerTest {
+class UnderlineHandlerTest {
 
     @Test
     void handleTag_appliesUnderlineFormatting() throws InvalidFormatException {
         // Arrange
-        UnderlineTagHandler underlineTagHandler = new UnderlineTagHandler();
+        UnderlineHandler underlineHandler = new UnderlineHandler();
         Node underlineNode = Jsoup.parse("<u>Underlined text</u>").body().child(0);
         WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.createPackage();
 
         // Act
-        underlineTagHandler.handleTag(underlineNode, wordMLPackage);
+        underlineHandler.handleTag(underlineNode, wordMLPackage);
 
         // Assert
         RPr rPr = RunUtils.getCurrentRPr(wordMLPackage);

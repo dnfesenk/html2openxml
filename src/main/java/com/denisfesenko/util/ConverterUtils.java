@@ -1,7 +1,11 @@
 package com.denisfesenko.util;
 
+import org.docx4j.sharedtypes.STOnOff;
+import org.docx4j.wml.CTTblLook;
+import org.docx4j.wml.Tbl;
 import org.jsoup.nodes.Node;
 
+import java.math.BigInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,5 +32,29 @@ public class ConverterUtils {
             }
         }
         return null;
+    }
+
+    public static void fillTblGrid(Tbl tbl, CellWrapper[] firstRow) {
+        for (int i = 0; i < firstRow.length; i++) {
+            var w = firstRow[i].getWidth();
+            var tblGridCol = RunUtils.getObjectFactory().createTblGridCol();
+            if (!w.isBlank()) {
+                tblGridCol.setW(BigInteger.valueOf(Integer.parseInt(w) * 100L));
+            } else {
+                tblGridCol.setW(tbl.getTblPr().getTblW().getW()
+                        .divide(BigInteger.valueOf(firstRow.length))
+                        .multiply(BigInteger.TWO));
+            }
+            tbl.getTblGrid().getGridCol().set(i, tblGridCol);
+        }
+    }
+
+    public static void fillTblLook(CTTblLook ctTblLook) {
+        ctTblLook.setFirstRow(STOnOff.ONE);
+        ctTblLook.setLastRow(STOnOff.ZERO);
+        ctTblLook.setFirstColumn(STOnOff.ONE);
+        ctTblLook.setLastColumn(STOnOff.ZERO);
+        ctTblLook.setNoHBand(STOnOff.ZERO);
+        ctTblLook.setNoVBand(STOnOff.ONE);
     }
 }
