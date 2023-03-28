@@ -15,7 +15,6 @@ public class CellWrapper {
     private String width;
     private String content;
     private String style;
-    private String align;
     private String merge;
     private BigInteger colspan;
 
@@ -43,15 +42,6 @@ public class CellWrapper {
 
     public CellWrapper setStyle(String style) {
         this.style = style;
-        return this;
-    }
-
-    public String getAlign() {
-        return align;
-    }
-
-    public CellWrapper setAlign(String align) {
-        this.align = align;
         return this;
     }
 

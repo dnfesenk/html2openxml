@@ -3,6 +3,7 @@ package com.denisfesenko.handler;
 import com.denisfesenko.converter.HtmlToOpenXMLConverter;
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.util.CellWrapper;
+import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.model.table.TblFactory;
@@ -19,8 +20,10 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.IntStream;
 
+/**
+ * This class handles the conversion of HTML tables to WordprocessingMLPackage format.
+ */
 public class TableHandler implements TagHandler {
 
     private HtmlToOpenXMLConverter converter;
@@ -38,40 +41,35 @@ public class TableHandler implements TagHandler {
         }
     }
 
+    /**
+     * Adds the HtmlToOpenXMLConverter instance to this TableHandler.
+     *
+     * @param converter The HtmlToOpenXMLConverter instance.
+     * @return The TableHandler instance.
+     */
     public TableHandler addConverter(HtmlToOpenXMLConverter converter) {
         this.converter = converter;
         return this;
     }
 
-    private Tbl createTableWithSettings(CellWrapper[][] cellMatrix, int maxCols, int cellWidthTwips, Element docTable, WordprocessingMLPackage wordMLPackage) {
+    private Tbl createTableWithSettings(CellWrapper[][] cellMatrix, int maxCols, int cellWidthTwips, Element docTable,
+                                        WordprocessingMLPackage wordMLPackage) {
         Tbl table = TblFactory.createTable(cellMatrix.length, maxCols, cellWidthTwips);
         TblWidth tableWidth = RunUtils.getObjectFactory().createTblWidth();
-        tableWidth.setW(BigInteger.valueOf(docTable.attr("width").isBlank() ? 5000L : Long.parseLong(docTable.attr("width")) * 50L));
+        tableWidth.setW(BigInteger.valueOf(docTable.attr(Constants.WIDTH).isBlank()
+                ? 5000L : Long.parseLong(docTable.attr(Constants.WIDTH)) * 50L));
         tableWidth.setType("pct");
         table.getTblPr().setTblW(tableWidth);
         ConverterUtils.fillTblLook(table.getTblPr().getTblLook());
         ConverterUtils.fillTblGrid(table, cellMatrix[0]);
-        var i = 0;
+        int i = 0;
         for (CellWrapper[] tblRow : cellMatrix) {
             Tr row = (Tr) table.getContent().get(i);
             i++;
-            var d = 0;
+            int d = 0;
             for (CellWrapper tblCol : tblRow) {
-                Tc column = (Tc) row.getContent().get(d);
-                var colspan = tblCol.getColspan();
-                if (!tblCol.getWidth().isBlank() || !tblCol.getStyle().isBlank() || !tblCol.getMerge().isBlank()
-                        || colspan != null) {
-                    tblCol.setCellParams(column);
-                    if (colspan != null) {
-                        IntStream.range(1, colspan.intValue()).forEach(value -> row.getContent().remove(row.getContent().size() - 1));
-                    }
-                }
+                processTableCell(tblCol, row, d, wordMLPackage);
                 d++;
-                List<Object> tempContent = new ArrayList<>(wordMLPackage.getMainDocumentPart().getContent());
-                wordMLPackage.getMainDocumentPart().getContent().clear();
-                converter.convert(tblCol.getContent(), wordMLPackage);
-                ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
-                ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
             }
         }
         return table;
@@ -83,17 +81,35 @@ public class TableHandler implements TagHandler {
 
     private CellWrapper[][] parseTable(Elements trs) {
         CellWrapper[][] cellMatrix = new CellWrapper[trs.size()][];
-        for (var i = 0; i < trs.size(); i++) {
+        for (int i = 0; i < trs.size(); i++) {
             Elements tds = trs.get(i).select("td");
             cellMatrix[i] = new CellWrapper[tds.size()];
-            for (var j = 0; j < tds.size(); j++) {
-                cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setWidth(tds.get(j).attr("width"))
-                        .setStyle(tds.get(j).attr("style")).setAlign(tds.get(j).attr("align"))
-                        .setMerge(tds.get(j).attr("merge")).setColspan(!tds.get(j).attr("colspan").isBlank()
+            for (int j = 0; j < tds.size(); j++) {
+                cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setWidth(tds.get(j).attr(Constants.WIDTH))
+                        .setStyle(tds.get(j).attr("style")).setMerge(tds.get(j).attr("merge"))
+                        .setColspan(!tds.get(j).attr("colspan").isBlank()
                                 ? new BigInteger(tds.get(j).attr("colspan")) : null);
             }
         }
         return cellMatrix;
+    }
+
+    private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex, WordprocessingMLPackage wordMLPackage) {
+        Tc column = (Tc) row.getContent().get(cellIndex);
+        BigInteger colspan = tblCol.getColspan();
+        if (!tblCol.getWidth().isBlank() || !tblCol.getStyle().isBlank() || !tblCol.getMerge().isBlank() || colspan != null) {
+            tblCol.setCellParams(column);
+            if (colspan != null) {
+                int elementsToRemove = colspan.intValue() - 1;
+                int startIndex = row.getContent().size() - elementsToRemove;
+                row.getContent().subList(startIndex, row.getContent().size()).clear();
+            }
+        }
+        List<Object> tempContent = new ArrayList<>(wordMLPackage.getMainDocumentPart().getContent());
+        wordMLPackage.getMainDocumentPart().getContent().clear();
+        converter.convert(tblCol.getContent(), wordMLPackage);
+        ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
+        ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
     }
 
     @Override
