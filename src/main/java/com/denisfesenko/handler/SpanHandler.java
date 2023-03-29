@@ -1,6 +1,7 @@
 package com.denisfesenko.handler;
 
 import com.denisfesenko.core.TagHandler;
+import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -14,11 +15,11 @@ public class SpanHandler implements TagHandler {
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         Node spanNode = ConverterUtils.findParentNode(node, "span");
         if (spanNode != null) {
-            String style = StringUtils.isNotBlank(spanNode.attr("style")) ? spanNode.attr("style") : null;
+            String style = StringUtils.isNotBlank(spanNode.attr(Constants.STYLE)) ? spanNode.attr(Constants.STYLE) : null;
             String bgColor = StringUtils.substringBetween(style, "background-color: ", ";");
             if (bgColor != null) {
                 Highlight highlight = RunUtils.getObjectFactory().createHighlight();
-                highlight.setVal(ConverterUtils.rgbToHex(bgColor));
+                highlight.setVal(ConverterUtils.isHexColor(bgColor) ? bgColor : ConverterUtils.rgbToHex(bgColor));
                 //skip unsupported color
                 if (highlight.getVal() == null) {
                     highlight.setVal("#ffffff");

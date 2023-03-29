@@ -37,6 +37,9 @@ public class TableHandler implements TagHandler {
             int maxCols = getMaxColumns(cellMatrix);
             int cellWidthTwips = wordMLPackage.getDocumentModel().getSections().get(0).getPageDimensions().getWritableWidthTwips() / maxCols;
             Tbl table = createTableWithSettings(cellMatrix, maxCols, cellWidthTwips, docTable, wordMLPackage);
+            if (docTable.attributes().get(Constants.STYLE).toLowerCase().contains(Constants.TABLE_BORDERLESS_STYLE)) {
+                ConverterUtils.setBorderlessStyle(table);
+            }
             wordMLPackage.getMainDocumentPart().getContent().add(table);
         }
     }
@@ -86,7 +89,7 @@ public class TableHandler implements TagHandler {
             cellMatrix[i] = new CellWrapper[tds.size()];
             for (int j = 0; j < tds.size(); j++) {
                 cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setWidth(tds.get(j).attr(Constants.WIDTH))
-                        .setStyle(tds.get(j).attr("style")).setMerge(tds.get(j).attr("merge"))
+                        .setStyle(tds.get(j).attr(Constants.STYLE)).setMerge(tds.get(j).attr("merge"))
                         .setColspan(!tds.get(j).attr("colspan").isBlank()
                                 ? new BigInteger(tds.get(j).attr("colspan")) : null);
             }

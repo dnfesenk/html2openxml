@@ -3,6 +3,7 @@ package com.denisfesenko.converter.handler;
 import com.denisfesenko.converter.HtmlToOpenXMLConverter;
 import com.denisfesenko.handler.TableHandler;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.wml.STBorder;
 import org.docx4j.wml.Tbl;
 import org.docx4j.wml.Tc;
 import org.docx4j.wml.Tr;
@@ -175,5 +176,24 @@ class TableHandlerTest {
         // Check if the fourth cell has no background color
         Tc fourthCell = (Tc) secondRow.getContent().get(1);
         assertNull(fourthCell.getTcPr().getShd());
+    }
+
+    @Test
+    void testHandleTagWithBorderlessStyle() throws Exception {
+        String html = "<html><body><table style=\"border: none;\"><tr><td>Cell 1</td><td>Cell 2</td></tr><tr>" +
+                "<td>Cell 3</td><td>Cell 4</td></tr></table></body></html>";
+        Document document = Jsoup.parse(html);
+        tableHandler.handleTag(document.body().child(0), wordMLPackage);
+
+        // Check if the table was added to the WordprocessingMLPackage
+        assertEquals(1, wordMLPackage.getMainDocumentPart().getContent().size());
+        Tbl tbl = (Tbl) wordMLPackage.getMainDocumentPart().getContent().get(0);
+
+        // Check if the table borders have been set to STBorder.NONE
+        assertNotNull(tbl.getTblPr().getTblBorders());
+        assertEquals(STBorder.NONE, tbl.getTblPr().getTblBorders().getBottom().getVal());
+        assertEquals(STBorder.NONE, tbl.getTblPr().getTblBorders().getTop().getVal());
+        assertEquals(STBorder.NONE, tbl.getTblPr().getTblBorders().getLeft().getVal());
+        assertEquals(STBorder.NONE, tbl.getTblPr().getTblBorders().getRight().getVal());
     }
 }
