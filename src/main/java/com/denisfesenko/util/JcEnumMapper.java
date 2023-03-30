@@ -40,4 +40,10 @@ public class JcEnumMapper {
 
         return jcEnumeration;
     }
+
+    /**
+     * Private constructor to prevent instantiation.
+     */
+    private JcEnumMapper() {
+    }
 }

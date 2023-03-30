@@ -28,6 +28,14 @@ public class TableHandler implements TagHandler {
 
     private HtmlToOpenXMLConverter converter;
 
+    /**
+     * This method is called to process the input node and convert it to the corresponding
+     * WordprocessingMLPackage format.
+     *
+     * @param node          The input HTML node to be processed.
+     * @param wordMLPackage The WordprocessingMLPackage instance where the converted content
+     *                      will be added.
+     */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         Element rootNode = (Element) node;
@@ -42,6 +50,16 @@ public class TableHandler implements TagHandler {
             }
             wordMLPackage.getMainDocumentPart().getContent().add(table);
         }
+    }
+
+    /**
+     * This method returns whether the tag handler can be applied to multiple tags.
+     *
+     * @return false, as the TableHandler should not be applied to multiple tags.
+     */
+    @Override
+    public boolean isRepeatable() {
+        return false;
     }
 
     /**
@@ -113,10 +131,5 @@ public class TableHandler implements TagHandler {
         converter.convert(tblCol.getContent(), wordMLPackage);
         ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
         ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
-    }
-
-    @Override
-    public boolean isRepeatable() {
-        return false;
     }
 }

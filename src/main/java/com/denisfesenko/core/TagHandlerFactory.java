@@ -16,7 +16,20 @@ import com.denisfesenko.handler.UnderlineHandler;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * The TagHandlerFactory class is responsible for creating a map
+ * of supported HTML tags and their corresponding handlers.
+ * Each handler is responsible for processing a specific HTML tag.
+ */
 public class TagHandlerFactory {
+
+    /**
+     * Creates and returns a map of supported HTML tags and their corresponding handlers.
+     * The keys in the map are tag names, and the values are instances of the appropriate
+     * TagHandler subclasses for processing the tags.
+     *
+     * @return A map of supported HTML tags and their corresponding handlers.
+     */
     public Map<String, TagHandler> createTagHandlerMap() {
         Map<String, TagHandler> tagHandlerMap = new HashMap<>();
         tagHandlerMap.put("table", new TableHandler());

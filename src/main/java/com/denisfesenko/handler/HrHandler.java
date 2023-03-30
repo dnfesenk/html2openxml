@@ -11,10 +11,21 @@ import org.docx4j.vml.officedrawing.STTrueFalse;
 import org.docx4j.wml.Pict;
 import org.jsoup.nodes.Node;
 
+/**
+ * The HrHandler class is responsible for processing the HTML horizontal rule tag (&lt;hr&gt;).
+ * It implements the TagHandler interface.
+ */
 public class HrHandler implements TagHandler {
 
     private static final ObjectFactory OBJECT_FACTORY = new ObjectFactory();
 
+    /**
+     * Handles the HTML horizontal rule tag by creating a horizontal rule in the
+     * provided WordprocessingMLPackage.
+     *
+     * @param node          The HTML node representing the horizontal rule tag.
+     * @param wordMLPackage The WordprocessingMLPackage to which the horizontal rule is added.
+     */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         Pict pict = RunUtils.getObjectFactory().createPict();
@@ -30,6 +41,12 @@ public class HrHandler implements TagHandler {
         RunUtils.getCurrentRun(wordMLPackage).getContent().add(pict);
     }
 
+    /**
+     * Indicates whether the HrHandler can be applied multiple times to the same content.
+     * In this case, it returns false, as the horizontal rule should not be applied multiple times.
+     *
+     * @return A boolean value, true if the handler is repeatable, false otherwise.
+     */
     @Override
     public boolean isRepeatable() {
         return false;
