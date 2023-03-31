@@ -1,6 +1,7 @@
 package com.denisfesenko.util;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.wml.CTShd;
 import org.docx4j.wml.STShd;
 import org.docx4j.wml.TblWidth;
@@ -28,17 +29,6 @@ public class CellWrapper {
      */
     public String getWidth() {
         return width;
-    }
-
-    /**
-     * Sets the width of the table cell.
-     *
-     * @param width the width to set
-     * @return the current instance of the CellWrapper
-     */
-    public CellWrapper setWidth(String width) {
-        this.width = width;
-        return this;
     }
 
     /**
@@ -73,12 +63,14 @@ public class CellWrapper {
 
     /**
      * Sets the style of the table cell.
+     * Extract and set the width of the table cell.
      *
      * @param style the style to set
      * @return the current instance of the CellWrapper
      */
     public CellWrapper setStyle(String style) {
         this.style = style;
+        this.width = ConverterUtils.getPercentWidthFromStyle(style);
         return this;
     }
 
@@ -145,10 +137,12 @@ public class CellWrapper {
         Optional.ofNullable(width)
                 .filter(w -> !w.isBlank())
                 .ifPresent(w -> {
-                    TblWidth tableWidth = RunUtils.getObjectFactory().createTblWidth();
-                    tableWidth.setW(BigInteger.valueOf(Integer.parseInt(w) * 50L));
-                    tableWidth.setType("pct");
-                    tableCellProperties.setTcW(tableWidth);
+                    if (NumberUtils.isCreatable(width)) {
+                        TblWidth tableWidth = RunUtils.getObjectFactory().createTblWidth();
+                        tableWidth.setW(BigInteger.valueOf(Integer.parseInt(w) * 50L));
+                        tableWidth.setType("pct");
+                        tableCellProperties.setTcW(tableWidth);
+                    }
                 });
     }
 

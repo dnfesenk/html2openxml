@@ -1,5 +1,7 @@
 package com.denisfesenko.util;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.sharedtypes.STOnOff;
 import org.docx4j.wml.CTBorder;
 import org.docx4j.wml.CTTblLook;
@@ -7,6 +9,7 @@ import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.STBorder;
 import org.docx4j.wml.Tbl;
 import org.docx4j.wml.TblBorders;
+import org.docx4j.wml.TblGridCol;
 import org.docx4j.wml.TblPr;
 import org.jsoup.nodes.Node;
 
@@ -82,10 +85,10 @@ public class ConverterUtils {
      */
     public static void fillTblGrid(Tbl tbl, CellWrapper[] firstRow) {
         for (int i = 0; i < firstRow.length; i++) {
-            var w = firstRow[i].getWidth();
-            var tblGridCol = RunUtils.getObjectFactory().createTblGridCol();
-            if (!w.isBlank()) {
-                tblGridCol.setW(BigInteger.valueOf(Integer.parseInt(w) * 100L));
+            String width = firstRow[i].getWidth();
+            TblGridCol tblGridCol = RunUtils.getObjectFactory().createTblGridCol();
+            if (NumberUtils.isCreatable(width)) {
+                tblGridCol.setW(BigInteger.valueOf(Integer.parseInt(width) * 100L));
             } else {
                 tblGridCol.setW(tbl.getTblPr().getTblW().getW()
                         .divide(BigInteger.valueOf(firstRow.length))
@@ -149,6 +152,16 @@ public class ConverterUtils {
     public static int pxToDxa(int px) {
         double inches = px / 96.0;
         return (int) Math.round(inches * 1440);
+    }
+
+    /**
+     * Returns the percentage width from a given CSS style string.
+     *
+     * @param style the CSS style string to extract the percentage width from
+     * @return the percentage width as a string, or null if not found
+     */
+    public static String getPercentWidthFromStyle(String style) {
+        return StringUtils.substringBetween(style, Constants.WIDTH + ": ", "%;");
     }
 
     /**

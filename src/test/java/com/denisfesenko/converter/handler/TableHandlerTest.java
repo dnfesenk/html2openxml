@@ -74,8 +74,8 @@ class TableHandlerTest {
     }
 
     @Test
-    void testTableWithWidth() throws Exception {
-        String html = "<html><body><table><tr><td width=\"100\">Cell 1</td></tr></table></body></html>";
+    void testTableWithTdWidth() throws Exception {
+        String html = "<html><body><table><tr><td style=\"width: 100%;\">Cell 1</td></tr></table></body></html>";
         Document document = Jsoup.parse(html);
         tableHandler.handleTag(document.body().child(0), wordMLPackage);
 
@@ -85,6 +85,18 @@ class TableHandlerTest {
         Tc firstCell = (Tc) firstRow.getContent().get(0);
         BigInteger cellWidth = firstCell.getTcPr().getTcW().getW();
         assertEquals(BigInteger.valueOf(100).multiply(BigInteger.valueOf(50L)), cellWidth);
+    }
+
+    @Test
+    void testTableWithWidth() throws Exception {
+        String html = "<html><body><table style=\"width: 100%;\"><tr><td>Cell 1</td></tr></table></body></html>";
+        Document document = Jsoup.parse(html);
+        tableHandler.handleTag(document.body().child(0), wordMLPackage);
+
+        Tbl table = (Tbl) wordMLPackage.getMainDocumentPart().getContent().get(0);
+        assertNotNull(table.getTblPr());
+        assertNotNull(table.getTblPr().getTblW());
+        assertEquals(BigInteger.valueOf(100).multiply(BigInteger.valueOf(50L)), table.getTblPr().getTblW().getW());
     }
 
     @Test

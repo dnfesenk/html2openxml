@@ -6,6 +6,7 @@ import com.denisfesenko.util.CellWrapper;
 import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.model.table.TblFactory;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.Tbl;
@@ -77,8 +78,7 @@ public class TableHandler implements TagHandler {
                                         WordprocessingMLPackage wordMLPackage) {
         Tbl table = TblFactory.createTable(cellMatrix.length, maxCols, cellWidthTwips);
         TblWidth tableWidth = RunUtils.getObjectFactory().createTblWidth();
-        tableWidth.setW(BigInteger.valueOf(docTable.attr(Constants.WIDTH).isBlank()
-                ? 5000L : Long.parseLong(docTable.attr(Constants.WIDTH)) * 50L));
+        tableWidth.setW(getTableWidthFromStyle(docTable.attr(Constants.STYLE)));
         tableWidth.setType("pct");
         table.getTblPr().setTblW(tableWidth);
         ConverterUtils.fillTblLook(table.getTblPr().getTblLook());
@@ -106,9 +106,8 @@ public class TableHandler implements TagHandler {
             Elements tds = trs.get(i).select("td");
             cellMatrix[i] = new CellWrapper[tds.size()];
             for (int j = 0; j < tds.size(); j++) {
-                cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setWidth(tds.get(j).attr(Constants.WIDTH))
-                        .setStyle(tds.get(j).attr(Constants.STYLE)).setMerge(tds.get(j).attr("merge"))
-                        .setColspan(!tds.get(j).attr("colspan").isBlank()
+                cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setStyle(tds.get(j).attr(Constants.STYLE))
+                        .setMerge(tds.get(j).attr("merge")).setColspan(!tds.get(j).attr("colspan").isBlank()
                                 ? new BigInteger(tds.get(j).attr("colspan")) : null);
             }
         }
@@ -118,7 +117,7 @@ public class TableHandler implements TagHandler {
     private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex, WordprocessingMLPackage wordMLPackage) {
         Tc column = (Tc) row.getContent().get(cellIndex);
         BigInteger colspan = tblCol.getColspan();
-        if (!tblCol.getWidth().isBlank() || !tblCol.getStyle().isBlank() || !tblCol.getMerge().isBlank() || colspan != null) {
+        if (!tblCol.getStyle().isBlank() || !tblCol.getMerge().isBlank() || colspan != null) {
             tblCol.setCellParams(column);
             if (colspan != null) {
                 int elementsToRemove = colspan.intValue() - 1;
@@ -131,5 +130,14 @@ public class TableHandler implements TagHandler {
         converter.convert(tblCol.getContent(), wordMLPackage);
         ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
         ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
+    }
+
+    private BigInteger getTableWidthFromStyle(String style) {
+        long width = 5000L;
+        String tableWidth = ConverterUtils.getPercentWidthFromStyle(style);
+        if (NumberUtils.isCreatable(tableWidth)) {
+            width = Long.parseLong(tableWidth) * 50L;
+        }
+        return BigInteger.valueOf(width);
     }
 }
