@@ -25,18 +25,17 @@ public class SpanHandler implements TagHandler {
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         Node spanNode = ConverterUtils.findParentNode(node, "span");
-        if (spanNode != null) {
-            String style = StringUtils.isNotBlank(spanNode.attr(Constants.STYLE)) ? spanNode.attr(Constants.STYLE) : null;
-            String bgColor = StringUtils.substringBetween(style, "background-color: ", ";");
-            if (bgColor != null) {
-                Highlight highlight = RunUtils.getObjectFactory().createHighlight();
-                highlight.setVal(ConverterUtils.isHexColor(bgColor) ? bgColor : ConverterUtils.rgbToHex(bgColor));
-                //skip unsupported color
-                if (highlight.getVal() == null) {
-                    highlight.setVal(Constants.HEX_WHITE_COLOR);
-                }
-                RunUtils.getCurrentRPr(wordMLPackage).setHighlight(highlight);
+        String style = StringUtils.isNotBlank(spanNode.attr(Constants.STYLE)) ? spanNode.attr(Constants.STYLE) : null;
+        String bgColor = StringUtils.substringBetween(style, "background-color: ", ";");
+        if (bgColor != null) {
+            Highlight highlight = RunUtils.getObjectFactory().createHighlight();
+            highlight.setVal(ConverterUtils.isHexColor(bgColor)
+                    ? bgColor : ConverterUtils.rgbToHex(bgColor, Constants.HEX_WHITE_COLOR));
+            //skip unsupported color
+            if (highlight.getVal() == null) {
+                highlight.setVal(Constants.HEX_WHITE_COLOR);
             }
+            RunUtils.getCurrentRPr(wordMLPackage).setHighlight(highlight);
         }
     }
 

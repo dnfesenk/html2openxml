@@ -25,6 +25,11 @@ public class Constants {
     public static final String HEX_WHITE_COLOR = "#ffffff";
 
     /**
+     * The black color in hexadecimal format.
+     */
+    public static final String HEX_BLACK_COLOR = "#000000";
+
+    /**
      * Private constructor to prevent instantiation.
      */
     private Constants() {

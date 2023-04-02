@@ -19,11 +19,11 @@ class ParagraphHandlerTest {
     void handleTag_appliesParagraphFormatting() throws InvalidFormatException {
         // Arrange
         ParagraphHandler paragraphHandler = new ParagraphHandler();
-        Node boldNode = Jsoup.parse("<p align=\"left\" style=\"text-indent: 50px;\">Paragraph</p>").body().child(0);
+        Node pNode = Jsoup.parse("<p align=\"left\" style=\"text-indent: 50px;\">Paragraph</p>").body().child(0);
         WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.createPackage();
 
         // Act
-        paragraphHandler.handleTag(boldNode, wordMLPackage);
+        paragraphHandler.handleTag(pNode, wordMLPackage);
 
         // Assert
         P p = RunUtils.getCurrentParagraph(wordMLPackage);

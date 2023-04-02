@@ -34,7 +34,6 @@ class HtmlToOpenXMLConverterTest {
     void convertHtmlToDocx_createsValidDocxFileWithCorrectFormatting() {
         // Arrange
         String html = "<p>Hello, <b>World</b>! This is an <span style=\"background-color: rgb(255, 0, 0);\"><i>example</i> of <b><i>mixed</i></span> formatting</b>.</p>";
-        HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter();
         File outputFile = new File("output.docx");
 
         // Act

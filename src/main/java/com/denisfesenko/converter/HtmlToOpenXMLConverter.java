@@ -18,6 +18,8 @@ import java.util.Set;
 
 /**
  * A converter that converts HTML content to OpenXML format.
+ *
+ * @author Denis Fesenko <fesenkoden@gmail.com>
  */
 public class HtmlToOpenXMLConverter {
 

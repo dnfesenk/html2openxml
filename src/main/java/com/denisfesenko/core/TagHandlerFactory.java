@@ -2,6 +2,7 @@ package com.denisfesenko.core;
 
 import com.denisfesenko.handler.BoldHandler;
 import com.denisfesenko.handler.BreakHandler;
+import com.denisfesenko.handler.FontHandler;
 import com.denisfesenko.handler.HrHandler;
 import com.denisfesenko.handler.ItalicHandler;
 import com.denisfesenko.handler.PageBreakHandler;
@@ -32,6 +33,7 @@ public class TagHandlerFactory {
      */
     public Map<String, TagHandler> createTagHandlerMap() {
         Map<String, TagHandler> tagHandlerMap = new HashMap<>();
+        tagHandlerMap.put("font", new FontHandler());
         tagHandlerMap.put("table", new TableHandler());
         tagHandlerMap.put("sub", new SubHandler());
         tagHandlerMap.put("sup", new SupHandler());

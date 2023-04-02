@@ -45,36 +45,43 @@ public class ConverterUtils {
     }
 
     /**
-     * Converts an RGB color value to its equivalent hexadecimal representation.
+     * Converts an RGB color string to its corresponding hexadecimal color string.
      *
-     * @param rgb the RGB color value to convert
-     * @return the equivalent hexadecimal color code
+     * @param rgb          The input RGB color string in the format "rgb(r, g, b)".
+     * @param defaultColor The default hexadecimal color string to return if the input RGB string
+     *                     does not match the expected format.
+     * @return The hexadecimal color string corresponding to the input RGB color string, or
+     * the default color if the input RGB string is not in the expected format.
      */
-    public static String rgbToHex(String rgb) {
+    public static String rgbToHex(String rgb, String defaultColor) {
         Matcher matcher = RGB_COLOR_PATTERN.matcher(rgb);
         if (matcher.matches()) {
             return String.format("#%02x%02x%02x", Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)),
                     Integer.parseInt(matcher.group(3)));
         }
-        return Constants.HEX_WHITE_COLOR;
+        return defaultColor;
     }
 
     /**
-     * Finds the parent node of the given node with the specified node name.
+     * Finds the nearest ancestor node with a specified node name for a given node.
+     * This method searches recursively up the node hierarchy until it finds an ancestor
+     * node with the specified node name or throws an exception if the parent node is null.
      *
-     * @param node     the node whose parent node to find
-     * @param nodeName the name of the parent node to find
-     * @return the parent node with the specified node name, or null if not found
+     * @param node     The starting node from which to search for the parent node.
+     * @param nodeName The name of the desired parent node.
+     * @return The nearest ancestor node with the specified node name.
+     * @throws IllegalStateException If the parent node is null.
      */
     public static Node findParentNode(Node node, String nodeName) {
-        if (node.parentNode() != null) {
-            if (node.parentNode().nodeName().equalsIgnoreCase(nodeName)) {
-                return node.parentNode();
-            } else {
-                return findParentNode(node.parentNode(), nodeName);
-            }
+        Node parentNode = node.parentNode();
+        if (parentNode == null) {
+            throw new IllegalStateException("Parent node cannot be null");
         }
-        return null;
+        if (parentNode.nodeName().equalsIgnoreCase(nodeName)) {
+            return parentNode;
+        } else {
+            return findParentNode(parentNode, nodeName);
+        }
     }
 
     /**
@@ -144,14 +151,26 @@ public class ConverterUtils {
     }
 
     /**
-     * Converts a length value from pixels to dxa (twentieth of a point).
+     * Converts a pixel (px) value to its corresponding OpenXML DXA (twentieths of a point) value.
      *
-     * @param px the length value in pixels
-     * @return the length value in dxa
+     * @param px The pixel value to be converted.
+     * @return The equivalent OpenXML DXA value as a BigInteger.
      */
-    public static int pxToDxa(int px) {
+    public static BigInteger pxToDxa(int px) {
         double inches = px / 96.0;
-        return (int) Math.round(inches * 1440);
+        return BigInteger.valueOf(Math.round(inches * 1440));
+    }
+
+    /**
+     * Converts a pixel (px) value to its corresponding OpenXML half-points value.
+     *
+     * @param px The pixel value to be converted.
+     * @return The equivalent OpenXML half-points value as a BigInteger.
+     */
+    public static BigInteger pxToHalfPoints(int px) {
+        int dpi = 96; // Standard display DPI
+        int pointsPerInch = 72;
+        return BigInteger.valueOf(Math.round(((double) px / dpi) * pointsPerInch * 2));
     }
 
     /**

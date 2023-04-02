@@ -14,8 +14,6 @@ import org.docx4j.wml.PPr;
 import org.docx4j.wml.PPrBase;
 import org.jsoup.nodes.Node;
 
-import java.math.BigInteger;
-
 /**
  * This class handles the conversion of HTML paragraphs to WordprocessingMLPackage format.
  */
@@ -43,7 +41,7 @@ public class ParagraphHandler implements TagHandler {
             }
             if (NumberUtils.isCreatable(indent)) {
                 PPrBase.Ind ind = objectFactory.createPPrBaseInd();
-                ind.setFirstLine(BigInteger.valueOf(ConverterUtils.pxToDxa(Integer.parseInt(indent))));
+                ind.setFirstLine(ConverterUtils.pxToDxa(Integer.parseInt(indent)));
                 pPr.setInd(ind);
             }
         }
