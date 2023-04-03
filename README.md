@@ -2,6 +2,7 @@
 
 **html2openxml** is a Java library that converts HTML content to OpenXML format (Microsoft Word `.docx` format), supporting common HTML elements like paragraphs, bold, italic, underline, tables, and more. Built using [docx4j](https://www.docx4java.org/) and [Jsoup](https://jsoup.org/), you can try a live demo of this library at https://html2openxml-demo.herokuapp.com/.
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.denisfesenko/html2openxml/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.denisfesenko/html2openxml)
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
