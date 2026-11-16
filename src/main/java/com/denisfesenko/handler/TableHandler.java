@@ -6,7 +6,6 @@ import com.denisfesenko.util.CellWrapper;
 import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.model.table.TblFactory;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.Tbl;
@@ -42,8 +41,10 @@ public class TableHandler implements TagHandler {
         Element rootNode = (Element) node;
         Element docTable = rootNode.selectFirst("table");
         if (docTable != null) {
-            CellWrapper[][] cellMatrix = parseTable(docTable.select("tr"));
+            CellWrapper[][] cellMatrix = parseTable(new Elements(docTable.select("tr").stream()
+                    .filter(tr -> tr.closest("table") == docTable).collect(java.util.stream.Collectors.toList())));
             int maxCols = getMaxColumns(cellMatrix);
+            if (maxCols == 0) return;
             int cellWidthTwips = wordMLPackage.getDocumentModel().getSections().get(0).getPageDimensions().getWritableWidthTwips() / maxCols;
             Tbl table = createTableWithSettings(cellMatrix, maxCols, cellWidthTwips, docTable, wordMLPackage);
             if (docTable.attributes().get(Constants.STYLE).toLowerCase().contains(Constants.TABLE_BORDERLESS_STYLE)) {
@@ -97,13 +98,13 @@ public class TableHandler implements TagHandler {
     }
 
     private int getMaxColumns(CellWrapper[][] cellMatrix) {
-        return Arrays.stream(cellMatrix).mapToInt(cellWrappers -> cellWrappers.length).max().orElse(cellMatrix[0].length);
+        return Arrays.stream(cellMatrix).mapToInt(cells -> Arrays.stream(cells).mapToInt(cell -> cell.getColspan() == null ? 1 : cell.getColspan().intValueExact()).sum()).max().orElse(0);
     }
 
     private CellWrapper[][] parseTable(Elements trs) {
         CellWrapper[][] cellMatrix = new CellWrapper[trs.size()][];
         for (int i = 0; i < trs.size(); i++) {
-            Elements tds = trs.get(i).select("td");
+            Elements tds = trs.get(i).select("> td, > th");
             cellMatrix[i] = new CellWrapper[tds.size()];
             for (int j = 0; j < tds.size(); j++) {
                 cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setStyle(tds.get(j).attr(Constants.STYLE))
@@ -127,17 +128,19 @@ public class TableHandler implements TagHandler {
         }
         List<Object> tempContent = new ArrayList<>(wordMLPackage.getMainDocumentPart().getContent());
         wordMLPackage.getMainDocumentPart().getContent().clear();
-        converter.convert(tblCol.getContent(), wordMLPackage);
-        ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
-        ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
+        try {
+            converter.convert(tblCol.getContent(), wordMLPackage);
+            ConverterUtils.replaceListContent(column.getContent(), wordMLPackage.getMainDocumentPart().getContent());
+            if (column.getContent().isEmpty() || !(column.getContent().get(column.getContent().size() - 1) instanceof org.docx4j.wml.P)) {
+                column.getContent().add(RunUtils.getObjectFactory().createP());
+            }
+        } finally {
+            ConverterUtils.replaceListContent(wordMLPackage.getMainDocumentPart().getContent(), tempContent);
+        }
     }
 
     private BigInteger getTableWidthFromStyle(String style) {
-        long width = 5000L;
-        String tableWidth = ConverterUtils.getPercentWidthFromStyle(style);
-        if (NumberUtils.isCreatable(tableWidth)) {
-            width = Long.parseLong(tableWidth) * 50L;
-        }
-        return BigInteger.valueOf(width);
+        BigInteger width = ConverterUtils.scaleDecimal(ConverterUtils.getPercentWidthFromStyle(style), "50");
+        return width != null && width.signum() >= 0 ? width : BigInteger.valueOf(5000);
     }
 }

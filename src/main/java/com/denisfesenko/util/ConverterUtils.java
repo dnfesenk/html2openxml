@@ -1,7 +1,6 @@
 package com.denisfesenko.util;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.sharedtypes.STOnOff;
 import org.docx4j.wml.CTBorder;
 import org.docx4j.wml.CTTblLook;
@@ -14,6 +13,8 @@ import org.docx4j.wml.TblPr;
 import org.jsoup.nodes.Node;
 
 import java.math.BigInteger;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -91,17 +92,21 @@ public class ConverterUtils {
      * @param firstRow the first row of the table containing the cell widths
      */
     public static void fillTblGrid(Tbl tbl, CellWrapper[] firstRow) {
-        for (int i = 0; i < firstRow.length; i++) {
-            String width = firstRow[i].getWidth();
-            TblGridCol tblGridCol = RunUtils.getObjectFactory().createTblGridCol();
-            if (NumberUtils.isCreatable(width)) {
-                tblGridCol.setW(BigInteger.valueOf(Integer.parseInt(width) * 100L));
-            } else {
-                tblGridCol.setW(tbl.getTblPr().getTblW().getW()
-                        .divide(BigInteger.valueOf(firstRow.length))
-                        .multiply(BigInteger.TWO));
+        BigInteger totalWidth = tbl.getTblGrid().getGridCol().stream()
+                .map(TblGridCol::getW).reduce(BigInteger.ZERO, BigInteger::add);
+        int index = 0;
+        for (CellWrapper cell : firstRow) {
+            int span = cell.getColspan() == null ? 1 : cell.getColspan().intValueExact();
+            String width = cell.getWidth();
+            BigInteger percentage = scaleDecimal(width, "50");
+            if (percentage != null && percentage.signum() >= 0) {
+                BigInteger columnWidth = totalWidth.multiply(percentage)
+                        .divide(BigInteger.valueOf(5000L * span));
+                for (int offset = 0; offset < span; offset++) {
+                    tbl.getTblGrid().getGridCol().get(index + offset).setW(columnWidth);
+                }
             }
-            tbl.getTblGrid().getGridCol().set(i, tblGridCol);
+            index += span;
         }
     }
 
@@ -126,7 +131,8 @@ public class ConverterUtils {
      */
     public static void setBorderlessStyle(Tbl table) {
         ObjectFactory objectFactory = RunUtils.getObjectFactory();
-        TblPr tblPr = objectFactory.createTblPr();
+        TblPr tblPr = table.getTblPr();
+        if (tblPr == null) tblPr = objectFactory.createTblPr();
         TblBorders tblBorders = objectFactory.createTblBorders();
         CTBorder ctBorder = objectFactory.createCTBorder();
         ctBorder.setVal(STBorder.NONE);
@@ -134,6 +140,8 @@ public class ConverterUtils {
         tblBorders.setTop(ctBorder);
         tblBorders.setLeft(ctBorder);
         tblBorders.setRight(ctBorder);
+        tblBorders.setInsideH(ctBorder);
+        tblBorders.setInsideV(ctBorder);
         tblPr.setTblBorders(tblBorders);
         table.setTblPr(tblPr);
     }
@@ -181,6 +189,21 @@ public class ConverterUtils {
      */
     public static String getPercentWidthFromStyle(String style) {
         return StringUtils.substringBetween(style, Constants.WIDTH + ": ", "%;");
+    }
+
+    /**
+     * Scales a decimal measurement and rounds to the nearest OpenXML integer unit.
+     * Invalid or out-of-range values are ignored.
+     *
+     * @param value the decimal measurement
+     * @param factor the conversion factor
+     * @return the rounded value, or null for unsupported input
+     */
+    public static BigInteger scaleDecimal(String value, String factor) {
+        if (value == null || value.length() > 64 || !value.trim().matches("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)")) return null;
+        BigInteger scaled = new BigDecimal(value.trim()).multiply(new BigDecimal(factor))
+                .setScale(0, RoundingMode.HALF_UP).toBigIntegerExact();
+        return scaled.abs().compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) <= 0 ? scaled : null;
     }
 
     /**

@@ -6,7 +6,7 @@ import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.JcEnumMapper;
 import com.denisfesenko.util.RunUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
+import java.math.BigInteger;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.Jc;
 import org.docx4j.wml.ObjectFactory;
@@ -39,9 +39,10 @@ public class ParagraphHandler implements TagHandler {
                 jc.setVal(JcEnumMapper.map(align));
                 pPr.setJc(jc);
             }
-            if (NumberUtils.isCreatable(indent)) {
+            BigInteger indentDxa = ConverterUtils.scaleDecimal(indent, "15");
+            if (indentDxa != null) {
                 PPrBase.Ind ind = objectFactory.createPPrBaseInd();
-                ind.setFirstLine(ConverterUtils.pxToDxa(Integer.parseInt(indent)));
+                ind.setFirstLine(indentDxa);
                 pPr.setInd(ind);
             }
         }

@@ -5,7 +5,7 @@ import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
+import java.math.BigInteger;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.Color;
 import org.docx4j.wml.HpsMeasure;
@@ -28,7 +28,11 @@ public class FontHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        Node fontNode = ConverterUtils.findParentNode(node, "font");
+        handleTag(node, ConverterUtils.findParentNode(node, "font"), wordMLPackage);
+    }
+
+    @Override
+    public void handleTag(Node node, Node fontNode, WordprocessingMLPackage wordMLPackage) {
         ObjectFactory objectFactory = RunUtils.getObjectFactory();
         RPr rPr = RunUtils.getCurrentRPr(wordMLPackage);
 
@@ -37,15 +41,15 @@ public class FontHandler implements TagHandler {
             String fontColor = ConverterUtils.isHexColor(nodeColor)
                     ? nodeColor : ConverterUtils.rgbToHex(nodeColor, Constants.HEX_BLACK_COLOR);
             Color color = objectFactory.createColor();
-            color.setVal(fontColor);
+            color.setVal(fontColor.replace("#", ""));
             rPr.setColor(color);
         }
 
         String nodeSize = StringUtils.substringBefore(fontNode.attr("size"), "px");
-        if (NumberUtils.isCreatable(nodeSize)) {
-            int fontSize = Integer.parseInt(nodeSize);
+        BigInteger fontSize = ConverterUtils.scaleDecimal(nodeSize, "1.5");
+        if (fontSize != null && fontSize.signum() > 0) {
             HpsMeasure hpsMeasure = objectFactory.createHpsMeasure();
-            hpsMeasure.setVal(ConverterUtils.pxToHalfPoints(fontSize));
+            hpsMeasure.setVal(fontSize);
             rPr.setSz(hpsMeasure);
             rPr.setSzCs(hpsMeasure);
         }

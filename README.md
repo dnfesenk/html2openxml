@@ -2,27 +2,37 @@
 
 **html2openxml** is a Java library that converts HTML content to OpenXML format (Microsoft Word `.docx` format), supporting common HTML elements like paragraphs, bold, italic, underline, tables, and more. Built using [docx4j](https://www.docx4java.org/) and [Jsoup](https://jsoup.org/), you can try a live demo of this library at https://html2openxml-demo.herokuapp.com/.
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.denisfesenko/html2openxml/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.denisfesenko/html2openxml)
+[![Maven Central](https://img.shields.io/maven-central/v/com.denisfesenko/html2openxml)](https://central.sonatype.com/artifact/com.denisfesenko/html2openxml)
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
 - [Supported HTML Elements](#supported-html-elements)
+- [Images](#images)
 - [Custom Tag Handlers](#custom-tag-handlers)
 - [Limitations](#limitations)
 - [License](#license)
 
 ## Installation
+
+Requires **Java 25 or later** to build and run the current source version.
+
+Build and test with Maven:
+
+```sh
+mvn clean test
+```
+
 Add the following dependency to your `pom.xml`:
 ```xml
 <dependency>
   <groupId>com.denisfesenko</groupId>
   <artifactId>html2openxml</artifactId>
-  <version>1.0.0</version>
+  <version>2.0.0</version>
 </dependency>
 ```
 Or if you're using Gradle, add this to your `build.gradle`:
 ```groovy
-implementation 'com.denisfesenko:html2openxml:1.0.0'
+implementation 'com.denisfesenko:html2openxml:2.0.0'
 ```
 
 ## Usage
@@ -65,6 +75,24 @@ public class Main {
 - `<hr>` - Horizontal rule
 - `<pb>` - Page Break
 - `<br>` - Line Break
+- `<img>` - Embedded PNG, JPEG or GIF from a Base64 data URI
+
+## Images
+The current source version supports inline images from Base64 data URIs, including images in table cells:
+
+```html
+<p>Before <img src="data:image/png;base64,..." width="200" alt="Chart"> after</p>
+```
+
+PNG, JPEG (`image/jpeg` or `image/jpg`) and GIF are supported. Base64 whitespace is allowed.
+The `width` and `height` attributes accept pixels, including decimal values and an optional `px` suffix.
+When one dimension is omitted, the aspect ratio is preserved. Without dimensions, the original pixel size
+is used at 96 DPI. Images wider than the writable page area are scaled down proportionally.
+The `alt` attribute is stored as the image description.
+
+Remote URLs, local file paths and other image formats are not loaded; their `alt` text is inserted instead.
+Malformed Base64, unrecognized image bytes or a MIME type that disagrees with the image data cause
+`IllegalArgumentException`.
 
 ## Custom Tag Handlers
 You can extend the functionality of **html2openxml** by implementing your own custom tag handlers. Simply implement the `TagHandler` interface and register your handler with the `HtmlToOpenXMLConverter`:

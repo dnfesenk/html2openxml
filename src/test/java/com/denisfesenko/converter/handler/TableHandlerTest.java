@@ -70,7 +70,7 @@ class TableHandlerTest {
         Tr firstRow = (Tr) table.getContent().get(0);
         Tc firstCell = (Tc) firstRow.getContent().get(0);
         String fillColor = firstCell.getTcPr().getShd().getFill();
-        assertEquals("#FF0000", fillColor);
+        assertEquals("FF0000", fillColor);
     }
 
     @Test
@@ -139,13 +139,13 @@ class TableHandlerTest {
         Tr firstRow = (Tr) tbl.getContent().get(0);
         Tc firstCell = (Tc) firstRow.getContent().get(0);
         assertNotNull(firstCell.getTcPr().getShd());
-        assertEquals("#ff0000", firstCell.getTcPr().getShd().getFill());
+        assertEquals("ff0000", firstCell.getTcPr().getShd().getFill());
 
         // Check if the third cell has the correct background color
         Tr secondRow = (Tr) tbl.getContent().get(1);
         Tc thirdCell = (Tc) secondRow.getContent().get(0);
         assertNotNull(thirdCell.getTcPr().getShd());
-        assertEquals("#0000ff", thirdCell.getTcPr().getShd().getFill());
+        assertEquals("0000ff", thirdCell.getTcPr().getShd().getFill());
 
         // Check if the fourth cell has no background color
         Tc fourthCell = (Tc) secondRow.getContent().get(1);
@@ -168,20 +168,20 @@ class TableHandlerTest {
         Tr firstRow = (Tr) tbl.getContent().get(0);
         Tc firstCell = (Tc) firstRow.getContent().get(0);
         assertNotNull(firstCell.getTcPr().getShd());
-        assertEquals("#ff0000", firstCell.getTcPr().getShd().getFill());
+        assertEquals("ff0000", firstCell.getTcPr().getShd().getFill());
         assertNotNull(firstCell.getTcPr().getVMerge());
         assertEquals("restart", firstCell.getTcPr().getVMerge().getVal());
 
         // Check if the second cell has the correct background color
         Tc secondCell = (Tc) firstRow.getContent().get(1);
         assertNotNull(secondCell.getTcPr().getShd());
-        assertEquals("#00ff00", secondCell.getTcPr().getShd().getFill());
+        assertEquals("00ff00", secondCell.getTcPr().getShd().getFill());
 
         // Check if the third cell has the correct background color and merge type
         Tr secondRow = (Tr) tbl.getContent().get(1);
         Tc thirdCell = (Tc) secondRow.getContent().get(0);
         assertNotNull(thirdCell.getTcPr().getShd());
-        assertEquals("#0000ff", thirdCell.getTcPr().getShd().getFill());
+        assertEquals("0000ff", thirdCell.getTcPr().getShd().getFill());
         assertNotNull(thirdCell.getTcPr().getVMerge());
         assertEquals("continue", thirdCell.getTcPr().getVMerge().getVal());
 
