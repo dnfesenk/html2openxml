@@ -13,7 +13,6 @@ import org.docx4j.wml.Text;
 import org.docx4j.wml.U;
 import org.docx4j.wml.UnderlineEnumeration;
 import org.junit.jupiter.api.Test;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.STHighlightColor;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -68,7 +67,8 @@ class HtmlToOpenXMLConverterTest {
             assertRun(runs.get(6), " formatting", true, false);
             assertRun(runs.get(7), ".", false, false);
 
-            assertEquals(STHighlightColor.RED, runs.get(3).getTextHightlightColor());
+            org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{(byte) 255, 0, 0},
+                    (byte[]) runs.get(3).getCTR().getRPr().getShdArray(0).getFill());
         } catch (IOException e) {
             fail("Failed to read the output file with exception: " + e.getMessage());
         }

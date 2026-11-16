@@ -1,7 +1,5 @@
 package com.denisfesenko.util;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.sharedtypes.STOnOff;
 import org.docx4j.wml.CTBorder;
 import org.docx4j.wml.CTTblLook;
@@ -13,7 +11,13 @@ import org.docx4j.wml.TblGridCol;
 import org.docx4j.wml.TblPr;
 import org.jsoup.nodes.Node;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Locale;
+import java.util.Properties;
 import java.math.BigInteger;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,12 +31,12 @@ public class ConverterUtils {
     /**
      * The regular expression pattern to match a hexadecimal color value.
      */
-    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#([a-fA-F0-9]{6})$");
+    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#(?:[a-fA-F0-9]{3}|[a-fA-F0-9]{6})$");
 
     /**
      * The regular expression pattern to match an RGB color value.
      */
-    private static final Pattern RGB_COLOR_PATTERN = Pattern.compile("rgb *\\( *(\\d+), *(\\d+), *(\\d+) *\\)");
+    private static final Pattern RGB_COLOR_PATTERN = Pattern.compile("rgb *\\( *(\\d{1,3}), *(\\d{1,3}), *(\\d{1,3}) *\\)", Pattern.CASE_INSENSITIVE);
 
     /**
      * Checks if the given value is a valid hexadecimal color code.
@@ -41,7 +45,7 @@ public class ConverterUtils {
      * @return true if the value is a valid hexadecimal color code, false otherwise
      */
     public static boolean isHexColor(String value) {
-        return HEX_COLOR_PATTERN.matcher(value).matches();
+        return value != null && HEX_COLOR_PATTERN.matcher(value.trim()).matches();
     }
 
     /**
@@ -54,12 +58,69 @@ public class ConverterUtils {
      * the default color if the input RGB string is not in the expected format.
      */
     public static String rgbToHex(String rgb, String defaultColor) {
-        Matcher matcher = RGB_COLOR_PATTERN.matcher(rgb);
+        if (rgb == null) return defaultColor;
+        Matcher matcher = RGB_COLOR_PATTERN.matcher(rgb.trim());
         if (matcher.matches()) {
+            for (int i = 1; i <= 3; i++) {
+                if (Integer.parseInt(matcher.group(i)) > 255) return defaultColor;
+            }
             return String.format("#%02x%02x%02x", Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)),
                     Integer.parseInt(matcher.group(3)));
         }
         return defaultColor;
+    }
+
+    private static final Properties NAMED_COLORS = loadNamedColors();
+
+    private static Properties loadNamedColors() {
+        Properties colors = new Properties();
+        try (InputStream input = ConverterUtils.class.getResourceAsStream("css-colors.properties")) {
+            if (input == null) throw new IllegalStateException("Missing CSS named-color definitions");
+            colors.load(input);
+        } catch (IOException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+        return colors;
+    }
+
+    /**
+     * Converts #RGB, #RRGGBB, rgb(r,g,b) or a CSS named color to six OpenXML hex digits.
+     *
+     * @param value the HTML color
+     * @return six hex digits without #, or null for an unsupported color
+     */
+    public static String parseColor(String value) {
+        if (value == null) return null;
+        String color = value.trim();
+        if (isHexColor(color)) {
+            String hex = color.substring(1);
+            if (hex.length() == 3) {
+                return "" + hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+            }
+            return hex;
+        }
+        String rgb = rgbToHex(color, null);
+        if (rgb != null) return rgb.substring(1);
+        return NAMED_COLORS.getProperty(color.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Reads a CSS declaration, independently of whitespace and a trailing semicolon.
+     *
+     * @param style the inline style string
+     * @param property the CSS property name
+     * @return the last declared value, or null when absent
+     */
+    public static String getStyleProperty(String style, String property) {
+        if (style == null) return null;
+        String value = null;
+        for (String declaration : style.split(";")) {
+            int colon = declaration.indexOf(':');
+            if (colon >= 0 && declaration.substring(0, colon).trim().equalsIgnoreCase(property)) {
+                value = declaration.substring(colon + 1).trim();
+            }
+        }
+        return value;
     }
 
     /**
@@ -91,17 +152,21 @@ public class ConverterUtils {
      * @param firstRow the first row of the table containing the cell widths
      */
     public static void fillTblGrid(Tbl tbl, CellWrapper[] firstRow) {
-        for (int i = 0; i < firstRow.length; i++) {
-            String width = firstRow[i].getWidth();
-            TblGridCol tblGridCol = RunUtils.getObjectFactory().createTblGridCol();
-            if (NumberUtils.isCreatable(width)) {
-                tblGridCol.setW(BigInteger.valueOf(Integer.parseInt(width) * 100L));
-            } else {
-                tblGridCol.setW(tbl.getTblPr().getTblW().getW()
-                        .divide(BigInteger.valueOf(firstRow.length))
-                        .multiply(BigInteger.TWO));
+        BigInteger totalWidth = tbl.getTblGrid().getGridCol().stream()
+                .map(TblGridCol::getW).reduce(BigInteger.ZERO, BigInteger::add);
+        int index = 0;
+        for (CellWrapper cell : firstRow) {
+            int span = cell.getColspan() == null ? 1 : cell.getColspan().intValueExact();
+            String width = cell.getWidth();
+            BigInteger percentage = scaleDecimal(width, "50");
+            if (percentage != null && percentage.signum() >= 0) {
+                BigInteger columnWidth = totalWidth.multiply(percentage)
+                        .divide(BigInteger.valueOf(5000L * span));
+                for (int offset = 0; offset < span; offset++) {
+                    tbl.getTblGrid().getGridCol().get(index + offset).setW(columnWidth);
+                }
             }
-            tbl.getTblGrid().getGridCol().set(i, tblGridCol);
+            index += span;
         }
     }
 
@@ -126,7 +191,8 @@ public class ConverterUtils {
      */
     public static void setBorderlessStyle(Tbl table) {
         ObjectFactory objectFactory = RunUtils.getObjectFactory();
-        TblPr tblPr = objectFactory.createTblPr();
+        TblPr tblPr = table.getTblPr();
+        if (tblPr == null) tblPr = objectFactory.createTblPr();
         TblBorders tblBorders = objectFactory.createTblBorders();
         CTBorder ctBorder = objectFactory.createCTBorder();
         ctBorder.setVal(STBorder.NONE);
@@ -134,6 +200,8 @@ public class ConverterUtils {
         tblBorders.setTop(ctBorder);
         tblBorders.setLeft(ctBorder);
         tblBorders.setRight(ctBorder);
+        tblBorders.setInsideH(ctBorder);
+        tblBorders.setInsideV(ctBorder);
         tblPr.setTblBorders(tblBorders);
         table.setTblPr(tblPr);
     }
@@ -180,7 +248,37 @@ public class ConverterUtils {
      * @return the percentage width as a string, or null if not found
      */
     public static String getPercentWidthFromStyle(String style) {
-        return StringUtils.substringBetween(style, Constants.WIDTH + ": ", "%;");
+        return getStyleMeasurement(style, Constants.WIDTH, "%");
+    }
+
+    /**
+     * Reads a CSS measurement with the specified unit.
+     *
+     * @param style the inline CSS declarations
+     * @param property the property name
+     * @param unit the required unit, for example px or %
+     * @return the numeric portion, or null when the property or unit is unsupported
+     */
+    public static String getStyleMeasurement(String style, String property, String unit) {
+        String value = getStyleProperty(style, property);
+        if (value == null || value.length() < unit.length()
+                || !value.regionMatches(true, value.length() - unit.length(), unit, 0, unit.length())) return null;
+        return value.substring(0, value.length() - unit.length()).trim();
+    }
+
+    /**
+     * Scales a decimal measurement and rounds to the nearest OpenXML integer unit.
+     * Invalid or out-of-range values are ignored.
+     *
+     * @param value the decimal measurement
+     * @param factor the conversion factor
+     * @return the rounded value, or null for unsupported input
+     */
+    public static BigInteger scaleDecimal(String value, String factor) {
+        if (value == null || value.length() > 64 || !value.trim().matches("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)")) return null;
+        BigInteger scaled = new BigDecimal(value.trim()).multiply(new BigDecimal(factor))
+                .setScale(0, RoundingMode.HALF_UP).toBigIntegerExact();
+        return scaled.abs().compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) <= 0 ? scaled : null;
     }
 
     /**

@@ -28,7 +28,7 @@ class FontHandlerTest {
         HpsMeasure size = rPr.getSz();
         HpsMeasure sizeCs = rPr.getSzCs();
 
-        assertEquals("#FF5733", color.getVal());
+        assertEquals("FF5733", color.getVal());
         assertEquals(BigInteger.valueOf(24), size.getVal());
         assertEquals(BigInteger.valueOf(24), sizeCs.getVal());
     }
@@ -58,7 +58,7 @@ class FontHandlerTest {
         HpsMeasure size = rPr.getSz();
         HpsMeasure sizeCs = rPr.getSzCs();
 
-        assertEquals("#FF5733", color.getVal());
+        assertEquals("FF5733", color.getVal());
         assertNull(size);
         assertNull(sizeCs);
     }

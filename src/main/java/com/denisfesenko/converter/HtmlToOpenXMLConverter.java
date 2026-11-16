@@ -10,11 +10,15 @@ import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
-import org.jsoup.select.NodeVisitor;
+import org.jsoup.nodes.TextNode;
+import org.jsoup.select.NodeFilter;
+import org.jsoup.select.NodeTraversor;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
+
 
 /**
  * A converter that converts HTML content to OpenXML format.
@@ -24,7 +28,6 @@ import java.util.Set;
 public class HtmlToOpenXMLConverter {
 
     private final Map<String, TagHandler> tagHandlerMap;
-    private final Set<TagHandler> tagHandlers;
 
     /**
      * Default constructor. Initializes the converter with default tag handlers.
@@ -43,7 +46,6 @@ public class HtmlToOpenXMLConverter {
         if (customTagHandlerMap != null) {
             tagHandlerMap.putAll(customTagHandlerMap);
         }
-        tagHandlers = new HashSet<>();
     }
 
     /**
@@ -78,33 +80,47 @@ public class HtmlToOpenXMLConverter {
      * @param wordMLPackage the WordprocessingMLPackage that will store the converted content
      */
     private void traverseDocument(Document document, WordprocessingMLPackage wordMLPackage) {
-        document.traverse(new NodeVisitor() {
+        List<Node> activeTags = new ArrayList<>();
+        NodeTraversor.filter(new NodeFilter() {
+            private boolean paragraphEnded;
             @Override
-            public void head(Node node, int depth) {
+            public FilterResult head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (tagHandler != null) {
+                    if (paragraphEnded && node instanceof TextNode && ((TextNode) node).isBlank()) {
+                        return FilterResult.CONTINUE;
+                    }
+                    if (paragraphEnded && !(tagHandler instanceof TableHandler) && !node.nodeName().equals("p")
+                            && !tagHandler.isRepeatable()) {
+                        RunUtils.createParagraph(wordMLPackage, null);
+                        paragraphEnded = false;
+                    }
+                    if (node.nodeName().equals("p")) paragraphEnded = false;
                     if (tagHandler instanceof PlainTextHandler) {
                         RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
-                        tagHandlers.forEach(handler -> handler.handleTag(node, wordMLPackage));
+                        Map<TagHandler, List<Node>> contexts = new LinkedHashMap<>();
+                        activeTags.forEach(source -> contexts.computeIfAbsent(tagHandlerMap.get(source.nodeName()),
+                                handler -> new ArrayList<>()).add(source));
+                        contexts.forEach((handler, sources) -> handler.handleTag(node, sources, wordMLPackage));
                         tagHandler.handleTag(node, wordMLPackage);
                     } else if (tagHandler instanceof TableHandler) {
                         ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage);
-                        node.remove(); //prevent of second convert
+                        return FilterResult.SKIP_CHILDREN;
                     } else if (tagHandler.isRepeatable()) {
-                        tagHandlers.add(tagHandler);
+                        activeTags.add(node);
                     } else {
                         tagHandler.handleTag(node, wordMLPackage);
                     }
                 }
+                return FilterResult.CONTINUE;
             }
 
             @Override
-            public void tail(Node node, int depth) {
-                TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
-                if (!tagHandlers.isEmpty()) {
-                    tagHandlers.remove(tagHandler);
-                }
+            public FilterResult tail(Node node, int depth) {
+                activeTags.remove(node);
+                if (node.nodeName().equals("p")) paragraphEnded = true;
+                return FilterResult.CONTINUE;
             }
-        });
+        }, document);
     }
 }

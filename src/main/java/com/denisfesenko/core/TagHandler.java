@@ -2,6 +2,7 @@ package com.denisfesenko.core;
 
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.jsoup.nodes.Node;
+import java.util.List;
 
 /**
  * The TagHandler interface defines the contract for handling custom tags
@@ -20,6 +21,18 @@ public interface TagHandler {
      *                      based on the tag logic.
      */
     void handleTag(Node node, WordprocessingMLPackage wordMLPackage);
+
+    /**
+     * Applies active formatting to a descendant, with source elements ordered outermost first.
+     * Legacy handlers are called once per descendant, even when shared by multiple tags.
+     *
+     * @param node the descendant being converted
+     * @param sources the open elements associated with this handler
+     * @param wordMLPackage the target document
+     */
+    default void handleTag(Node node, List<Node> sources, WordprocessingMLPackage wordMLPackage) {
+        handleTag(node, wordMLPackage);
+    }
 
     /**
      * Determines whether the tag handler can be applied multiple times within

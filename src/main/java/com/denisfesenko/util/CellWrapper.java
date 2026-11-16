@@ -1,7 +1,5 @@
 package com.denisfesenko.util;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.docx4j.wml.CTShd;
 import org.docx4j.wml.STShd;
 import org.docx4j.wml.TblWidth;
@@ -137,9 +135,10 @@ public class CellWrapper {
         Optional.ofNullable(width)
                 .filter(w -> !w.isBlank())
                 .ifPresent(w -> {
-                    if (NumberUtils.isCreatable(width)) {
+                    BigInteger cellWidth = ConverterUtils.scaleDecimal(w, "50");
+                    if (cellWidth != null && cellWidth.signum() >= 0) {
                         TblWidth tableWidth = RunUtils.getObjectFactory().createTblWidth();
-                        tableWidth.setW(BigInteger.valueOf(Integer.parseInt(w) * 50L));
+                        tableWidth.setW(cellWidth);
                         tableWidth.setType("pct");
                         tableCellProperties.setTcW(tableWidth);
                     }
@@ -158,7 +157,9 @@ public class CellWrapper {
                     CTShd shd = RunUtils.getObjectFactory().createCTShd();
                     shd.setVal(STShd.CLEAR);
                     shd.setColor("auto");
-                    shd.setFill(StringUtils.substringBetween(s, "background-color: ", ";"));
+                    String color = ConverterUtils.parseColor(ConverterUtils.getStyleProperty(s, "background-color"));
+                    if (color == null) return;
+                    shd.setFill(color);
                     tableCellProperties.setShd(shd);
                 });
     }
