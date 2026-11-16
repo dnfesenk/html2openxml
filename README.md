@@ -77,6 +77,8 @@ public class Main {
 - `<br>` - Line Break
 - `<img>` - Embedded PNG, JPEG or GIF from a Base64 data URI
 
+Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
+
 ## Images
 The current source version supports inline images from Base64 data URIs, including images in table cells:
 
@@ -92,7 +94,8 @@ The `alt` attribute is stored as the image description.
 
 Remote URLs, local file paths and other image formats are not loaded; their `alt` text is inserted instead.
 Malformed Base64, unrecognized image bytes or a MIME type that disagrees with the image data cause
-`IllegalArgumentException`.
+`IllegalArgumentException`. Failures while embedding a valid image retain their runtime exception,
+or are wrapped in `IllegalStateException` for checked docx4j exceptions.
 
 ## Custom Tag Handlers
 You can extend the functionality of **html2openxml** by implementing your own custom tag handlers. Simply implement the `TagHandler` interface and register your handler with the `HtmlToOpenXMLConverter`:
@@ -111,6 +114,10 @@ TagHandler customTagHandler = new TagHandler() {
 
 HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter(Map.of("custom-tag", customTagHandler));
 ```
+Legacy repeatable handlers run once per text node, including when the same handler is registered for nested tags.
+Handlers that need inherited properties can override `handleTag(Node, List<Node>, WordprocessingMLPackage)`;
+the source elements are provided from outermost to innermost.
+
 Now, when the converter encounters an element with the tag name `<custom-tag>`, it will call the `handleTag` method of your `customTagHandler` instance.
 
 ## Limitations

@@ -42,7 +42,11 @@ public class ParagraphHandler implements TagHandler {
             BigInteger indentDxa = ConverterUtils.scaleDecimal(indent, "15");
             if (indentDxa != null) {
                 PPrBase.Ind ind = objectFactory.createPPrBaseInd();
-                ind.setFirstLine(indentDxa);
+                if (indentDxa.signum() < 0) {
+                    ind.setHanging(indentDxa.negate());
+                } else {
+                    ind.setFirstLine(indentDxa);
+                }
                 pPr.setInd(ind);
             }
         }

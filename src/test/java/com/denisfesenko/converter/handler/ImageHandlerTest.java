@@ -136,4 +136,28 @@ class ImageHandlerTest {
             assertTrue(error.getMessage().startsWith("Cannot embed image:"));
         }
     }
+    @Test
+    void documentFailuresAreNotReportedAsInvalidImageData() throws Exception {
+        IllegalStateException failure = new IllegalStateException("document failure");
+        WordprocessingMLPackage brokenDocument = new WordprocessingMLPackage() {
+            @Override
+            public org.docx4j.model.structure.DocumentModel getDocumentModel() {
+                throw failure;
+            }
+        };
+        String html = "<img src='" + uri("png") + "'>";
+        assertSame(failure, assertThrows(IllegalStateException.class,
+                () -> converter.convert(html, brokenDocument)));
+    }
+
+    @Test
+    void pictureAndDocumentPropertiesUseTheSameUniqueId() throws Exception {
+        var document = converter.convert("<img src='" + uri("png") + "'><img src='" + uri("png") + "'>");
+        P paragraph = (P) document.getMainDocumentPart().getContent().get(0);
+        for (int i = 0; i < 2; i++) {
+            Inline drawing = inline(paragraph, i);
+            assertEquals(drawing.getDocPr().getId(), drawing.getGraphic().getGraphicData().getPic().getNvPicPr().getCNvPr().getId());
+        }
+    }
+
 }

@@ -108,11 +108,22 @@ public class TableHandler implements TagHandler {
             cellMatrix[i] = new CellWrapper[tds.size()];
             for (int j = 0; j < tds.size(); j++) {
                 cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setStyle(tds.get(j).attr(Constants.STYLE))
-                        .setMerge(tds.get(j).attr("merge")).setColspan(!tds.get(j).attr("colspan").isBlank()
-                                ? new BigInteger(tds.get(j).attr("colspan")) : null);
+                        .setMerge(tds.get(j).attr("merge")).setColspan(parseColspan(tds.get(j).attr("colspan")));
             }
         }
         return cellMatrix;
+    }
+
+    private static BigInteger parseColspan(String value) {
+        String digits = value.trim();
+        if (digits.isEmpty()) return null;
+        int span = 0;
+        for (int i = 0; i < digits.length(); i++) {
+            char digit = digits.charAt(i);
+            if (digit < '0' || digit > '9') return null;
+            span = Math.min(1000, span * 10 + digit - '0');
+        }
+        return span > 1 ? BigInteger.valueOf(span) : null;
     }
 
     private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex, WordprocessingMLPackage wordMLPackage) {

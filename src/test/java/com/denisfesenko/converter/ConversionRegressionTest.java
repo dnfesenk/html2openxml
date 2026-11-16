@@ -130,4 +130,54 @@ class ConversionRegressionTest {
         assertEquals("C", ((Text) ((R) ((P) content.get(2)).getContent().get(0)).getContent().get(0)).getValue());
     }
 
+    @Test
+    void invalidColspanFallsBackToOneWithoutLosingCellText() throws Exception {
+        for (String span : new String[]{"0", "-1", "abc", "1.5", "", "1"}) {
+            Tbl table = (Tbl) converter.convert("<table><tr><td colspan='" + span + "'>A</td><td>B</td></tr></table>")
+                    .getMainDocumentPart().getContent().get(0);
+            assertEquals(2, table.getTblGrid().getGridCol().size(), span);
+            Tr row = (Tr) table.getContent().get(0);
+            assertEquals(2, row.getContent().size(), span);
+            assertEquals("A", text((Tc) row.getContent().get(0)));
+            assertEquals("B", text((Tc) row.getContent().get(1)));
+        }
+    }
+
+    @Test
+    void largeColspanIsClampedWithoutIntegerOverflow() throws Exception {
+        for (String span : new String[]{"9999", "200000", "2000000000", "999999999999999999999999", "9".repeat(10000)}) {
+            Tbl table = (Tbl) converter.convert("<table><tr><td colspan='" + span + "'>A</td><td>B</td></tr></table>")
+                    .getMainDocumentPart().getContent().get(0);
+            assertEquals(1001, table.getTblGrid().getGridCol().size());
+            Tr row = (Tr) table.getContent().get(0);
+            assertEquals(2, row.getContent().size());
+            Tc first = (Tc) row.getContent().get(0);
+            assertEquals(java.math.BigInteger.valueOf(1000), first.getTcPr().getGridSpan().getVal());
+            assertEquals("A", text(first));
+            assertEquals("B", text((Tc) row.getContent().get(1)));
+        }
+    }
+
+    @Test
+    void legacyCustomHandlerRunsOncePerTextNodeInsideNestedTags() throws Exception {
+        java.util.List<String> calls = new java.util.ArrayList<>();
+        var custom = new com.denisfesenko.core.TagHandler() {
+            public void handleTag(org.jsoup.nodes.Node node, WordprocessingMLPackage document) {
+                calls.add(((org.jsoup.nodes.TextNode) node).text());
+            }
+            public boolean isRepeatable() { return true; }
+        };
+        var customConverter = new HtmlToOpenXMLConverter(java.util.Map.of("x", custom, "y", custom));
+        customConverter.convert("<x>A<x>B</x>C</x>D<x>E</x><x><y>F</y></x>");
+        assertEquals(java.util.List.of("A", "B", "C", "E", "F"), calls);
+    }
+
+    @Test
+    void negativeTextIndentUsesHangingIndent() throws Exception {
+        P paragraph = (P) converter.convert("<p style='text-indent: -10.5px;'>A</p>")
+                .getMainDocumentPart().getContent().get(0);
+        assertEquals(java.math.BigInteger.valueOf(158), paragraph.getPPr().getInd().getHanging());
+        assertNull(paragraph.getPPr().getInd().getFirstLine());
+    }
+
 }

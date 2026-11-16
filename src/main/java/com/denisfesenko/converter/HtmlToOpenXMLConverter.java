@@ -16,6 +16,7 @@ import org.jsoup.select.NodeTraversor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 
@@ -97,7 +98,10 @@ public class HtmlToOpenXMLConverter {
                     if (node.nodeName().equals("p")) paragraphEnded = false;
                     if (tagHandler instanceof PlainTextHandler) {
                         RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
-                        activeTags.forEach(source -> tagHandlerMap.get(source.nodeName()).handleTag(node, source, wordMLPackage));
+                        Map<TagHandler, List<Node>> contexts = new LinkedHashMap<>();
+                        activeTags.forEach(source -> contexts.computeIfAbsent(tagHandlerMap.get(source.nodeName()),
+                                handler -> new ArrayList<>()).add(source));
+                        contexts.forEach((handler, sources) -> handler.handleTag(node, sources, wordMLPackage));
                         tagHandler.handleTag(node, wordMLPackage);
                     } else if (tagHandler instanceof TableHandler) {
                         ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage);

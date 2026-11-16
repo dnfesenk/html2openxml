@@ -12,6 +12,7 @@ import org.docx4j.wml.HpsMeasure;
 import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.RPr;
 import org.jsoup.nodes.Node;
+import java.util.List;
 
 /**
  * Handles the font-related properties of an HTML node and updates the corresponding
@@ -28,11 +29,15 @@ public class FontHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        handleTag(node, ConverterUtils.findParentNode(node, "font"), wordMLPackage);
+        applyFormatting(ConverterUtils.findParentNode(node, "font"), wordMLPackage);
     }
 
     @Override
-    public void handleTag(Node node, Node fontNode, WordprocessingMLPackage wordMLPackage) {
+    public void handleTag(Node node, List<Node> sources, WordprocessingMLPackage wordMLPackage) {
+        sources.forEach(source -> applyFormatting(source, wordMLPackage));
+    }
+
+    private void applyFormatting(Node fontNode, WordprocessingMLPackage wordMLPackage) {
         ObjectFactory objectFactory = RunUtils.getObjectFactory();
         RPr rPr = RunUtils.getCurrentRPr(wordMLPackage);
 

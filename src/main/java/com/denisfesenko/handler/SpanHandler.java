@@ -9,6 +9,7 @@ import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.CTShd;
 import org.docx4j.wml.STShd;
 import org.jsoup.nodes.Node;
+import java.util.List;
 
 /**
  * The SpanHandler class is an implementation of the TagHandler interface. It is responsible for handling
@@ -25,11 +26,15 @@ public class SpanHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        handleTag(node, ConverterUtils.findParentNode(node, "span"), wordMLPackage);
+        applyFormatting(ConverterUtils.findParentNode(node, "span"), wordMLPackage);
     }
 
     @Override
-    public void handleTag(Node node, Node spanNode, WordprocessingMLPackage wordMLPackage) {
+    public void handleTag(Node node, List<Node> sources, WordprocessingMLPackage wordMLPackage) {
+        sources.forEach(source -> applyFormatting(source, wordMLPackage));
+    }
+
+    private void applyFormatting(Node spanNode, WordprocessingMLPackage wordMLPackage) {
         String style = StringUtils.isNotBlank(spanNode.attr(Constants.STYLE)) ? spanNode.attr(Constants.STYLE) : null;
         String bgColor = StringUtils.substringBetween(style, "background-color: ", ";");
         if (bgColor != null) {

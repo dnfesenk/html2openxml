@@ -14,6 +14,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Base64;
 import java.util.Iterator;
@@ -34,9 +35,15 @@ public class ImageHandler implements TagHandler {
             addAltText(node, wordMLPackage);
             return;
         }
+        byte[] bytes;
+        int[] size;
         try {
-            byte[] bytes = Base64.getDecoder().decode(matcher.group(2).replaceAll("\\s", ""));
-            int[] size = imageSize(bytes, matcher.group(1));
+            bytes = Base64.getDecoder().decode(matcher.group(2).replaceAll("\\s", ""));
+            size = imageSize(bytes, matcher.group(1));
+        } catch (IllegalArgumentException | IOException e) {
+            throw new IllegalArgumentException("Cannot embed image: invalid or unsupported Base64 image data", e);
+        }
+        try {
             long width = dimension(node.attr("width"));
             long height = dimension(node.attr("height"));
             if (width == 0 && height == 0) {
@@ -55,15 +62,17 @@ public class ImageHandler implements TagHandler {
             }
             BinaryPartAbstractImage image = BinaryPartAbstractImage.createImagePart(wordMLPackage, bytes);
             long id = wordMLPackage.getDrawingPropsIdTracker().generateId();
-            var inline = image.createImageInline("image", "", id, 0, width, height, false);
+            var inline = image.createImageInline("image", "", id, Math.toIntExact(id), width, height, false);
             inline.getDocPr().setDescr(node.attr("alt"));
             Drawing drawing = RunUtils.getObjectFactory().createDrawing();
             drawing.getAnchorOrInline().add(inline);
             R run = RunUtils.getObjectFactory().createR();
             run.getContent().add(drawing);
             RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(run);
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new IllegalArgumentException("Cannot embed image: invalid or unsupported Base64 image data", e);
+            throw new IllegalStateException("Failed to embed image in the Word document", e);
         }
     }
 
@@ -73,7 +82,7 @@ public class ImageHandler implements TagHandler {
         return dimension != null && dimension.signum() > 0 ? dimension.longValue() : 0;
     }
 
-    private static int[] imageSize(byte[] bytes, String mimeSubtype) throws Exception {
+    private static int[] imageSize(byte[] bytes, String mimeSubtype) throws IOException {
         try (ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
             if (!readers.hasNext()) throw new IllegalArgumentException("Unrecognized image data");
