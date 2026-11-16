@@ -1,6 +1,5 @@
 package com.denisfesenko.util;
 
-import org.apache.commons.lang3.StringUtils;
 import org.docx4j.sharedtypes.STOnOff;
 import org.docx4j.wml.CTBorder;
 import org.docx4j.wml.CTTblLook;
@@ -249,7 +248,22 @@ public class ConverterUtils {
      * @return the percentage width as a string, or null if not found
      */
     public static String getPercentWidthFromStyle(String style) {
-        return StringUtils.substringBetween(style, Constants.WIDTH + ": ", "%;");
+        return getStyleMeasurement(style, Constants.WIDTH, "%");
+    }
+
+    /**
+     * Reads a CSS measurement with the specified unit.
+     *
+     * @param style the inline CSS declarations
+     * @param property the property name
+     * @param unit the required unit, for example px or %
+     * @return the numeric portion, or null when the property or unit is unsupported
+     */
+    public static String getStyleMeasurement(String style, String property, String unit) {
+        String value = getStyleProperty(style, property);
+        if (value == null || value.length() < unit.length()
+                || !value.regionMatches(true, value.length() - unit.length(), unit, 0, unit.length())) return null;
+        return value.substring(0, value.length() - unit.length()).trim();
     }
 
     /**

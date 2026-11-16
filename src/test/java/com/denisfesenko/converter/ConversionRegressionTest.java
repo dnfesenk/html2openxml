@@ -180,4 +180,30 @@ class ConversionRegressionTest {
         assertNull(paragraph.getPPr().getInd().getFirstLine());
     }
 
+    @Test
+    void cssMeasurementsIgnoreSpacingCaseAndFinalSemicolon() throws Exception {
+        for (String style : new String[]{"text-indent:10px", " TEXT-INDENT : 10PX ; ", "text-indent:2px;text-indent:10px"}) {
+            P paragraph = (P) converter.convert("<p style='" + style + "'>A</p>")
+                    .getMainDocumentPart().getContent().get(0);
+            assertEquals(java.math.BigInteger.valueOf(150), paragraph.getPPr().getInd().getFirstLine());
+        }
+        for (String style : new String[]{"width:33.3%", " WIDTH : 33.3% ; ", "width:10%;width:33.3%"}) {
+            Tbl table = (Tbl) converter.convert("<table style='" + style + "'><tr><td style='" + style + "'>A</td><td>B</td></tr></table>")
+                    .getMainDocumentPart().getContent().get(0);
+            assertEquals(java.math.BigInteger.valueOf(1665), table.getTblPr().getTblW().getW());
+            Tc cell = (Tc) ((Tr) table.getContent().get(0)).getContent().get(0);
+            assertEquals(java.math.BigInteger.valueOf(1665), cell.getTcPr().getTcW().getW());
+        }
+    }
+
+    @Test
+    void unsupportedCssMeasurementUnitsAreIgnored() throws Exception {
+        P paragraph = (P) converter.convert("<p style='text-indent:10em'>A</p>")
+                .getMainDocumentPart().getContent().get(0);
+        assertNull(paragraph.getPPr());
+        Tbl table = (Tbl) converter.convert("<table style='width:10px'><tr><td>A</td></tr></table>")
+                .getMainDocumentPart().getContent().get(0);
+        assertEquals(java.math.BigInteger.valueOf(5000), table.getTblPr().getTblW().getW());
+    }
+
 }

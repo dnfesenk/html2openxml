@@ -28,7 +28,7 @@ public class ParagraphHandler implements TagHandler {
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         String style = StringUtils.isNotBlank(node.attr(Constants.STYLE)) ? node.attr(Constants.STYLE) : null;
-        String indent = StringUtils.substringBetween(style, "text-indent: ", "px;");
+        String indent = ConverterUtils.getStyleMeasurement(style, "text-indent", "px");
         String align = StringUtils.isNotBlank(node.attr("align")) ? node.attr("align") : null;
         PPr pPr = null;
         if (align != null || indent != null) {

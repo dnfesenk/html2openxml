@@ -30,6 +30,9 @@ public class ImageHandler implements TagHandler {
 
     /** Default maximum decoded image size: 10 MiB. */
     public static final int DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+    /** Default maximum embedded image bytes per document: 50 MiB. */
+    public static final long DEFAULT_MAX_DOCUMENT_IMAGE_BYTES = 50L * 1024 * 1024;
+    private final long maxDocumentImageBytes;
     private final int maxImageBytes;
     private final long maxDataUriChars;
 
@@ -42,6 +45,16 @@ public class ImageHandler implements TagHandler {
      * @param maxImageBytes maximum decoded image bytes; must be positive
      */
     public ImageHandler(int maxImageBytes) {
+        this(maxImageBytes, DEFAULT_MAX_DOCUMENT_IMAGE_BYTES);
+    }
+
+    /**
+     * @param maxImageBytes maximum decoded bytes per image; must be positive
+     * @param maxDocumentImageBytes maximum embedded image bytes in the document; must be positive
+     */
+    public ImageHandler(int maxImageBytes, long maxDocumentImageBytes) {
+        if (maxDocumentImageBytes <= 0) throw new IllegalArgumentException("Document image byte limit must be positive");
+        this.maxDocumentImageBytes = maxDocumentImageBytes;
         if (maxImageBytes <= 0) throw new IllegalArgumentException("Image byte limit must be positive");
         this.maxImageBytes = maxImageBytes;
         this.maxDataUriChars = 2 * (4 * ((maxImageBytes + 2L) / 3)) + 128;
@@ -50,6 +63,15 @@ public class ImageHandler implements TagHandler {
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
         String source = node.attr("src");
+        // Classify the URI from its short header before limiting or copying the payload.
+        int start = 0;
+        while (start < source.length() && source.charAt(start) <= ' ') start++;
+        int comma = source.indexOf(',', start);
+        if (comma < start || comma - start > 64
+                || !DATA_URI.matcher(source.substring(start, comma + 1)).matches()) {
+            addAltText(node, wordMLPackage);
+            return;
+        }
         if (source.length() > maxDataUriChars) {
             throw new IllegalArgumentException("Image source exceeds the data URI character limit");
         }
@@ -65,6 +87,7 @@ public class ImageHandler implements TagHandler {
         if (decodedSize > maxImageBytes) {
             throw new IllegalArgumentException("Decoded image exceeds the configured limit of " + maxImageBytes + " bytes");
         }
+        checkDocumentImageBudget(wordMLPackage, Math.max(0, decodedSize));
         byte[] bytes;
         int[] size;
         try {
@@ -104,6 +127,26 @@ public class ImageHandler implements TagHandler {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to embed image in the Word document", e);
         }
+    }
+
+    private void checkDocumentImageBudget(WordprocessingMLPackage document, long incomingBytes) {
+        long remaining = maxDocumentImageBytes;
+        if (incomingBytes > remaining) throw documentLimitExceeded();
+        remaining -= incomingBytes;
+        for (var part : document.getParts().getParts().values()) {
+            if (part instanceof BinaryPartAbstractImage) {
+                BinaryPartAbstractImage image = (BinaryPartAbstractImage) part;
+                if (image.getExternalTarget() != null) continue;
+                var buffer = image.getBuffer();
+                if (buffer == null) throw new IllegalStateException("Cannot read an existing image to check the document budget");
+                if (buffer.remaining() > remaining) throw documentLimitExceeded();
+                remaining -= buffer.remaining();
+            }
+        }
+    }
+
+    private IllegalArgumentException documentLimitExceeded() {
+        return new IllegalArgumentException("Embedded images exceed the document limit of " + maxDocumentImageBytes + " bytes");
     }
 
     private static long dimension(String value) {

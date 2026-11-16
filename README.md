@@ -79,6 +79,9 @@ public class Main {
 - `<br>` - Line Break
 - `<img>` - Embedded PNG, JPEG or GIF from a Base64 data URI
 
+Inline table/cell `width` percentages and paragraph `text-indent` pixels are parsed independently of
+whitespace, property/unit case and a trailing semicolon; the last declaration wins.
+
 Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
 
 Colors in `<font color>`, `<span style="background-color: ...">` and table cells support
@@ -103,16 +106,26 @@ Malformed Base64, unrecognized image bytes or a MIME type that disagrees with th
 `IllegalArgumentException`. Failures while embedding a valid image retain their runtime exception,
 or are wrapped in `IllegalStateException` for checked docx4j exceptions.
 
-Embedded images are limited to **10 MiB of decoded bytes per image** by default. Both the data URI
-length (including whitespace) and decoded size are checked before Base64 decoding. The URI character
-limit is twice the padded Base64 length of the byte limit, plus 128 characters for the header.
-Override the limit by registering an image handler, for example 5 MiB:
+Embedded images are limited to **10 MiB of decoded bytes per image** and **50 MiB of embedded
+image data per document** by default. The document budget counts existing image parts, including
+images in table cells and images added by earlier conversions or loaded from DOCX. It counts stored
+binary data, not decoded pixels. Each new image is checked against the budget before Base64 decoding;
+invalid image data does not consume budget. Failed document operations can leave image parts in the
+package, and these parts still count toward the limit. This limit does not make conversion transactional.
+
+For supported Base64 image data URIs, both URI length (including whitespace) and decoded size are
+checked before decoding. The URI character limit is twice the padded Base64 length of the per-image
+byte limit, plus 128 characters for the header. Unsupported sources, including long URLs and paths,
+continue to use `alt` text.
+
+Override either budget by registering an image handler, for example 5 MiB per image and 20 MiB per document:
 
 ```java
-var converter = new HtmlToOpenXMLConverter(Map.of("img", new ImageHandler(5 * 1024 * 1024)));
+var converter = new HtmlToOpenXMLConverter(Map.of("img", new ImageHandler(5 * 1024 * 1024, 20L * 1024 * 1024)));
 ```
 
-`ImageHandler` is in `com.denisfesenko.handler`; the limit must be positive.
+`ImageHandler` is in `com.denisfesenko.handler`; both limits must be positive. The one-argument
+constructor changes only the per-image limit and keeps the default document budget.
 Oversized inputs raise `IllegalArgumentException`.
 
 ## Custom Tag Handlers

@@ -199,4 +199,70 @@ class ImageHandlerTest {
         assertThrows(IllegalArgumentException.class, () -> new com.denisfesenko.handler.ImageHandler(-1));
     }
 
+    @Test
+    void documentBudgetIncludesEarlierConversionsAndDoesNotLeakToOtherDocuments() throws Exception {
+        byte[] bytes = image("png");
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(bytes.length, bytes.length)));
+        String html = "<img src='" + uri("png") + "'>";
+        var first = limited.convert(html);
+        int parts = first.getParts().getParts().size();
+        var error = assertThrows(IllegalArgumentException.class, () -> limited.convert(html, first));
+        assertTrue(error.getMessage().contains("document limit"));
+        assertEquals(parts, first.getParts().getParts().size());
+        assertDoesNotThrow(() -> limited.convert(html));
+    }
+
+    @Test
+    void documentBudgetIncludesImagesInNestedTableCells() throws Exception {
+        int size = image("png").length;
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(size, 2L * size - 1)));
+        String img = "<img src='" + uri("png") + "'>";
+        var error = assertThrows(IllegalArgumentException.class, () -> limited.convert(
+                img + "<table><tr><td><table><tr><td>" + img + "</td></tr></table></td></tr></table>"));
+        assertTrue(error.getMessage().contains("document limit"));
+    }
+
+    @Test
+    void documentBudgetIncludesExistingImagesAfterReloadingDocx() throws Exception {
+        int size = image("png").length;
+        String html = "<img src='" + uri("png") + "'>";
+        ByteArrayOutputStream saved = new ByteArrayOutputStream();
+        converter.convert(html).save(saved);
+        var loaded = WordprocessingMLPackage.load(new ByteArrayInputStream(saved.toByteArray()));
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(size, 2L * size)));
+        assertDoesNotThrow(() -> limited.convert(html, loaded));
+        var error = assertThrows(IllegalArgumentException.class, () -> limited.convert(html, loaded));
+        assertTrue(error.getMessage().contains("document limit"));
+    }
+
+    @Test
+    void invalidImageDoesNotConsumeDocumentBudget() throws Exception {
+        int size = image("png").length;
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(size, size)));
+        var document = WordprocessingMLPackage.createPackage();
+        assertThrows(IllegalArgumentException.class,
+                () -> limited.convert("<img src='data:image/png;base64,AAAA'>", document));
+        String html = "<img src='" + uri("png") + "'>";
+        assertDoesNotThrow(() -> limited.convert(html, document));
+        assertThrows(IllegalArgumentException.class,
+                () -> new com.denisfesenko.handler.ImageHandler(size, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new com.denisfesenko.handler.ImageHandler(size, -1));
+    }
+
+    @Test
+    void oversizedUnsupportedSourcesStillUseAltText() throws Exception {
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(16)));
+        for (String prefix : new String[]{"https://example.invalid/", "file:///", "data:image/svg+xml;base64,"}) {
+            P paragraph = (P) limited.convert("<img src='" + prefix + "A".repeat(1000) + "' alt='fallback'>")
+                    .getMainDocumentPart().getContent().get(0);
+            assertEquals("fallback", ((Text) ((R) paragraph.getContent().get(0)).getContent().get(0)).getValue());
+        }
+    }
+
 }
