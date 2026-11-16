@@ -3,6 +3,7 @@ package com.denisfesenko.handler;
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
+import com.denisfesenko.util.ImageBudget;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.BinaryPartAbstractImage;
 import org.docx4j.wml.Drawing;
@@ -87,7 +88,7 @@ public class ImageHandler implements TagHandler {
         if (decodedSize > maxImageBytes) {
             throw new IllegalArgumentException("Decoded image exceeds the configured limit of " + maxImageBytes + " bytes");
         }
-        checkDocumentImageBudget(wordMLPackage, Math.max(0, decodedSize));
+        ImageBudget.check(wordMLPackage, Math.max(0, decodedSize), maxDocumentImageBytes);
         byte[] bytes;
         int[] size;
         try {
@@ -114,6 +115,7 @@ public class ImageHandler implements TagHandler {
                 width = pageWidth;
             }
             BinaryPartAbstractImage image = BinaryPartAbstractImage.createImagePart(wordMLPackage, bytes);
+            ImageBudget.imageAdded(wordMLPackage, image);
             long id = wordMLPackage.getDrawingPropsIdTracker().generateId();
             var inline = image.createImageInline("image", "", id, Math.toIntExact(id), width, height, false);
             inline.getDocPr().setDescr(node.attr("alt"));
@@ -123,30 +125,12 @@ public class ImageHandler implements TagHandler {
             run.getContent().add(drawing);
             RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(run);
         } catch (RuntimeException e) {
+            ImageBudget.invalidate(wordMLPackage);
             throw e;
         } catch (Exception e) {
+            ImageBudget.invalidate(wordMLPackage);
             throw new IllegalStateException("Failed to embed image in the Word document", e);
         }
-    }
-
-    private void checkDocumentImageBudget(WordprocessingMLPackage document, long incomingBytes) {
-        long remaining = maxDocumentImageBytes;
-        if (incomingBytes > remaining) throw documentLimitExceeded();
-        remaining -= incomingBytes;
-        for (var part : document.getParts().getParts().values()) {
-            if (part instanceof BinaryPartAbstractImage) {
-                BinaryPartAbstractImage image = (BinaryPartAbstractImage) part;
-                if (image.getExternalTarget() != null) continue;
-                var buffer = image.getBuffer();
-                if (buffer == null) throw new IllegalStateException("Cannot read an existing image to check the document budget");
-                if (buffer.remaining() > remaining) throw documentLimitExceeded();
-                remaining -= buffer.remaining();
-            }
-        }
-    }
-
-    private IllegalArgumentException documentLimitExceeded() {
-        return new IllegalArgumentException("Embedded images exceed the document limit of " + maxDocumentImageBytes + " bytes");
     }
 
     private static long dimension(String value) {

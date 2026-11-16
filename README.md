@@ -110,7 +110,12 @@ Embedded images are limited to **10 MiB of decoded bytes per image** and **50 Mi
 image data per document** by default. The document budget counts existing image parts, including
 images in table cells and images added by earlier conversions or loaded from DOCX. It counts stored
 binary data, not decoded pixels. Each new image is checked against the budget before Base64 decoding;
-invalid image data does not consume budget. Failed document operations can leave image parts in the
+invalid image data does not consume budget. During a conversion, existing image bytes are counted
+once and newly added parts update the count directly; nested table conversions share that count.
+The count is discarded when the outermost conversion returns or throws, so external changes between
+calls are reflected on the next call. Custom handlers invalidate it before and after their callbacks,
+and changes to the number of package parts also trigger a refresh. A caller must not mutate the same
+package concurrently with conversion. Failed document operations can leave image parts in the
 package, and these parts still count toward the limit. This limit does not make conversion transactional.
 
 For supported Base64 image data URIs, both URI length (including whitespace) and decoded size are
