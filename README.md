@@ -9,12 +9,14 @@
 - [Supported HTML Elements](#supported-html-elements)
 - [Images](#images)
 - [Custom Tag Handlers](#custom-tag-handlers)
+- [Publishing](#publishing)
 - [Limitations](#limitations)
 - [License](#license)
 
 ## Installation
 
-Requires **Java 25 or later** to build and run the current source version.
+Requires **Java 11 or later at runtime**. Building and running tests requires **JDK 17 or later**.
+The library targets Java 11 bytecode; JUnit 6 tests target Java 17. Newer JDKs, including Java 25, are supported.
 
 Build and test with Maven:
 
@@ -79,6 +81,10 @@ public class Main {
 
 Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
 
+Colors in `<font color>`, `<span style="background-color: ...">` and table cells support
+`#RGB`, `#RRGGBB`, `rgb(r, g, b)` and all 148 CSS named colors (case-insensitive).
+Unsupported colors are ignored, preserving inherited formatting.
+
 ## Images
 The current source version supports inline images from Base64 data URIs, including images in table cells:
 
@@ -96,6 +102,18 @@ Remote URLs, local file paths and other image formats are not loaded; their `alt
 Malformed Base64, unrecognized image bytes or a MIME type that disagrees with the image data cause
 `IllegalArgumentException`. Failures while embedding a valid image retain their runtime exception,
 or are wrapped in `IllegalStateException` for checked docx4j exceptions.
+
+Embedded images are limited to **10 MiB of decoded bytes per image** by default. Both the data URI
+length (including whitespace) and decoded size are checked before Base64 decoding. The URI character
+limit is twice the padded Base64 length of the byte limit, plus 128 characters for the header.
+Override the limit by registering an image handler, for example 5 MiB:
+
+```java
+var converter = new HtmlToOpenXMLConverter(Map.of("img", new ImageHandler(5 * 1024 * 1024)));
+```
+
+`ImageHandler` is in `com.denisfesenko.handler`; the limit must be positive.
+Oversized inputs raise `IllegalArgumentException`.
 
 ## Custom Tag Handlers
 You can extend the functionality of **html2openxml** by implementing your own custom tag handlers. Simply implement the `TagHandler` interface and register your handler with the `HtmlToOpenXMLConverter`:
@@ -120,8 +138,32 @@ the source elements are provided from outermost to innermost.
 
 Now, when the converter encounters an element with the tag name `<custom-tag>`, it will call the `handleTag` method of your `customTagHandler` instance.
 
+## Publishing
+
+Releases use the [Sonatype Central Portal Maven plugin](https://central.sonatype.org/publish/publish-portal-maven/)
+through the `release` profile. Configure your Portal token in Maven `settings.xml` under server ID `central`
+and a GPG signing key locally. Credentials are not stored in this repository.
+
+```xml
+<server>
+  <id>central</id>
+  <username>${env.CENTRAL_TOKEN_USERNAME}</username>
+  <password>${env.CENTRAL_TOKEN_PASSWORD}</password>
+</server>
+```
+
+Build a local bundle without signing or uploading:
+
+```sh
+mvn -Prelease deploy -Dcentral.skipUpload=true -Dgpg.skip=true
+```
+
+For a signed deployment, run `mvn -Prelease deploy`. This uploads for validation;
+`autoPublish` is disabled, so publication must be completed in the Central Portal.
+Normal `mvn verify` builds require neither publishing credentials nor a GPG key.
+
 ## Limitations
-This library is designed to handle a subset of HTML elements and does not provide support for all HTML5 tags and attributes. It also does not handle CSS styles. If you need more advanced conversion features, you may need to consider other options or extend this library with custom tag handlers.
+This library is designed to handle a subset of HTML elements and does not provide support for all HTML5 tags and attributes. It supports the inline style properties described above, rather than a complete CSS layout engine. If you need more advanced conversion features, you may need to consider other options or extend this library with custom tag handlers.
 
 ## License
 **html2openxml** is released under the MIT License. See the LICENSE file for more details.

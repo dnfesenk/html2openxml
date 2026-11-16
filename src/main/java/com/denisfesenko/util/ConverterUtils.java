@@ -12,6 +12,10 @@ import org.docx4j.wml.TblGridCol;
 import org.docx4j.wml.TblPr;
 import org.jsoup.nodes.Node;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Locale;
+import java.util.Properties;
 import java.math.BigInteger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,12 +32,12 @@ public class ConverterUtils {
     /**
      * The regular expression pattern to match a hexadecimal color value.
      */
-    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#([a-fA-F0-9]{6})$");
+    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("^#(?:[a-fA-F0-9]{3}|[a-fA-F0-9]{6})$");
 
     /**
      * The regular expression pattern to match an RGB color value.
      */
-    private static final Pattern RGB_COLOR_PATTERN = Pattern.compile("rgb *\\( *(\\d+), *(\\d+), *(\\d+) *\\)");
+    private static final Pattern RGB_COLOR_PATTERN = Pattern.compile("rgb *\\( *(\\d{1,3}), *(\\d{1,3}), *(\\d{1,3}) *\\)", Pattern.CASE_INSENSITIVE);
 
     /**
      * Checks if the given value is a valid hexadecimal color code.
@@ -42,7 +46,7 @@ public class ConverterUtils {
      * @return true if the value is a valid hexadecimal color code, false otherwise
      */
     public static boolean isHexColor(String value) {
-        return HEX_COLOR_PATTERN.matcher(value).matches();
+        return value != null && HEX_COLOR_PATTERN.matcher(value.trim()).matches();
     }
 
     /**
@@ -55,12 +59,69 @@ public class ConverterUtils {
      * the default color if the input RGB string is not in the expected format.
      */
     public static String rgbToHex(String rgb, String defaultColor) {
-        Matcher matcher = RGB_COLOR_PATTERN.matcher(rgb);
+        if (rgb == null) return defaultColor;
+        Matcher matcher = RGB_COLOR_PATTERN.matcher(rgb.trim());
         if (matcher.matches()) {
+            for (int i = 1; i <= 3; i++) {
+                if (Integer.parseInt(matcher.group(i)) > 255) return defaultColor;
+            }
             return String.format("#%02x%02x%02x", Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)),
                     Integer.parseInt(matcher.group(3)));
         }
         return defaultColor;
+    }
+
+    private static final Properties NAMED_COLORS = loadNamedColors();
+
+    private static Properties loadNamedColors() {
+        Properties colors = new Properties();
+        try (InputStream input = ConverterUtils.class.getResourceAsStream("css-colors.properties")) {
+            if (input == null) throw new IllegalStateException("Missing CSS named-color definitions");
+            colors.load(input);
+        } catch (IOException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+        return colors;
+    }
+
+    /**
+     * Converts #RGB, #RRGGBB, rgb(r,g,b) or a CSS named color to six OpenXML hex digits.
+     *
+     * @param value the HTML color
+     * @return six hex digits without #, or null for an unsupported color
+     */
+    public static String parseColor(String value) {
+        if (value == null) return null;
+        String color = value.trim();
+        if (isHexColor(color)) {
+            String hex = color.substring(1);
+            if (hex.length() == 3) {
+                return "" + hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+            }
+            return hex;
+        }
+        String rgb = rgbToHex(color, null);
+        if (rgb != null) return rgb.substring(1);
+        return NAMED_COLORS.getProperty(color.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Reads a CSS declaration, independently of whitespace and a trailing semicolon.
+     *
+     * @param style the inline style string
+     * @param property the CSS property name
+     * @return the last declared value, or null when absent
+     */
+    public static String getStyleProperty(String style, String property) {
+        if (style == null) return null;
+        String value = null;
+        for (String declaration : style.split(";")) {
+            int colon = declaration.indexOf(':');
+            if (colon >= 0 && declaration.substring(0, colon).trim().equalsIgnoreCase(property)) {
+                value = declaration.substring(colon + 1).trim();
+            }
+        }
+        return value;
     }
 
     /**

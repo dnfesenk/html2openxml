@@ -4,7 +4,6 @@ import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.CTShd;
 import org.docx4j.wml.STShd;
@@ -35,15 +34,12 @@ public class SpanHandler implements TagHandler {
     }
 
     private void applyFormatting(Node spanNode, WordprocessingMLPackage wordMLPackage) {
-        String style = StringUtils.isNotBlank(spanNode.attr(Constants.STYLE)) ? spanNode.attr(Constants.STYLE) : null;
-        String bgColor = StringUtils.substringBetween(style, "background-color: ", ";");
-        if (bgColor != null) {
+        String color = ConverterUtils.parseColor(ConverterUtils.getStyleProperty(spanNode.attr(Constants.STYLE), "background-color"));
+        if (color != null) {
             CTShd shading = RunUtils.getObjectFactory().createCTShd();
             shading.setVal(STShd.CLEAR);
             shading.setColor("auto");
-            String color = ConverterUtils.isHexColor(bgColor)
-                    ? bgColor : ConverterUtils.rgbToHex(bgColor, Constants.HEX_WHITE_COLOR);
-            shading.setFill(color.replace("#", ""));
+            shading.setFill(color);
             RunUtils.getCurrentRPr(wordMLPackage).setShd(shading);
         }
     }

@@ -160,4 +160,43 @@ class ImageHandlerTest {
         }
     }
 
+    @Test
+    void rejectsOversizedImagesBeforeDecodingOrCreatingParts() throws Exception {
+        byte[] bytes = image("png");
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(bytes.length - 1)));
+        var document = WordprocessingMLPackage.createPackage();
+        int parts = document.getParts().getParts().size();
+        String html = "<img src='" + uri("png") + "'>";
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> limited.convert(html, document));
+        assertTrue(error.getMessage().contains("exceeds the configured limit"));
+        assertNull(error.getCause());
+        assertEquals(parts, document.getParts().getParts().size());
+    }
+
+    @Test
+    void acceptsImagesAtTheByteLimitWithOrWithoutBase64Padding() throws Exception {
+        byte[] bytes = image("png");
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(bytes.length)));
+        for (Base64.Encoder encoder : new Base64.Encoder[]{Base64.getEncoder(), Base64.getEncoder().withoutPadding()}) {
+            String source = "data:image/png;base64," + encoder.encodeToString(bytes);
+            var document = limited.convert("<img src='" + source + "'>");
+            assertArrayEquals(bytes, BinaryPartAbstractImage.getImage(document,
+                    inline((P) document.getMainDocumentPart().getContent().get(0), 0).getGraphic()));
+        }
+    }
+
+    @Test
+    void rejectsExcessiveDataUriWhitespaceAndInvalidConfiguration() {
+        var limited = new HtmlToOpenXMLConverter(java.util.Map.of("img",
+                new com.denisfesenko.handler.ImageHandler(16)));
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> limited.convert("<img src='data:image/png;base64," + " ".repeat(1000) + "AAAA'>"));
+        assertTrue(error.getMessage().contains("character limit"));
+        assertThrows(IllegalArgumentException.class, () -> new com.denisfesenko.handler.ImageHandler(0));
+        assertThrows(IllegalArgumentException.class, () -> new com.denisfesenko.handler.ImageHandler(-1));
+    }
+
 }

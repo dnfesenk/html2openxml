@@ -1,7 +1,6 @@
 package com.denisfesenko.handler;
 
 import com.denisfesenko.core.TagHandler;
-import com.denisfesenko.util.Constants;
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -43,11 +42,12 @@ public class FontHandler implements TagHandler {
 
         String nodeColor = fontNode.attr("color");
         if (StringUtils.isNotBlank(nodeColor)) {
-            String fontColor = ConverterUtils.isHexColor(nodeColor)
-                    ? nodeColor : ConverterUtils.rgbToHex(nodeColor, Constants.HEX_BLACK_COLOR);
-            Color color = objectFactory.createColor();
-            color.setVal(fontColor.replace("#", ""));
-            rPr.setColor(color);
+            String fontColor = ConverterUtils.parseColor(nodeColor);
+            if (fontColor != null) {
+                Color color = objectFactory.createColor();
+                color.setVal(fontColor);
+                rPr.setColor(color);
+            }
         }
 
         String nodeSize = StringUtils.substringBefore(fontNode.attr("size"), "px");

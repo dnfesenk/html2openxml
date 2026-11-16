@@ -28,17 +28,47 @@ public class ImageHandler implements TagHandler {
             "^data:image/(png|jpeg|jpg|gif);base64,(.*)$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final long EMU_PER_PIXEL = 9525;
 
+    /** Default maximum decoded image size: 10 MiB. */
+    public static final int DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+    private final int maxImageBytes;
+    private final long maxDataUriChars;
+
+    /** Uses the default 10 MiB image limit. */
+    public ImageHandler() {
+        this(DEFAULT_MAX_IMAGE_BYTES);
+    }
+
+    /**
+     * @param maxImageBytes maximum decoded image bytes; must be positive
+     */
+    public ImageHandler(int maxImageBytes) {
+        if (maxImageBytes <= 0) throw new IllegalArgumentException("Image byte limit must be positive");
+        this.maxImageBytes = maxImageBytes;
+        this.maxDataUriChars = 2 * (4 * ((maxImageBytes + 2L) / 3)) + 128;
+    }
+
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        Matcher matcher = DATA_URI.matcher(node.attr("src").trim());
+        String source = node.attr("src");
+        if (source.length() > maxDataUriChars) {
+            throw new IllegalArgumentException("Image source exceeds the data URI character limit");
+        }
+        Matcher matcher = DATA_URI.matcher(source.trim());
         if (!matcher.matches()) {
             addAltText(node, wordMLPackage);
             return;
         }
+        String encoded = matcher.group(2).replaceAll("\\s", "");
+        long decodedSize = encoded.length() * 6L / 8;
+        if (encoded.endsWith("==")) decodedSize -= 2;
+        else if (encoded.endsWith("=")) decodedSize--;
+        if (decodedSize > maxImageBytes) {
+            throw new IllegalArgumentException("Decoded image exceeds the configured limit of " + maxImageBytes + " bytes");
+        }
         byte[] bytes;
         int[] size;
         try {
-            bytes = Base64.getDecoder().decode(matcher.group(2).replaceAll("\\s", ""));
+            bytes = Base64.getDecoder().decode(encoded);
             size = imageSize(bytes, matcher.group(1));
         } catch (IllegalArgumentException | IOException e) {
             throw new IllegalArgumentException("Cannot embed image: invalid or unsupported Base64 image data", e);

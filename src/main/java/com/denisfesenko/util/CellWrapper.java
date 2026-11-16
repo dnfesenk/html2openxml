@@ -1,6 +1,5 @@
 package com.denisfesenko.util;
 
-import org.apache.commons.lang3.StringUtils;
 import org.docx4j.wml.CTShd;
 import org.docx4j.wml.STShd;
 import org.docx4j.wml.TblWidth;
@@ -158,9 +157,9 @@ public class CellWrapper {
                     CTShd shd = RunUtils.getObjectFactory().createCTShd();
                     shd.setVal(STShd.CLEAR);
                     shd.setColor("auto");
-                    String color = StringUtils.substringBetween(s, "background-color: ", ";");
+                    String color = ConverterUtils.parseColor(ConverterUtils.getStyleProperty(s, "background-color"));
                     if (color == null) return;
-                    shd.setFill(color.replace("#", ""));
+                    shd.setFill(color);
                     tableCellProperties.setShd(shd);
                 });
     }
