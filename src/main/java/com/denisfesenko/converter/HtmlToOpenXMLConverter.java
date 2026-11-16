@@ -3,8 +3,6 @@ package com.denisfesenko.converter;
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.core.TagHandlerFactory;
 import com.denisfesenko.handler.PlainTextHandler;
-import com.denisfesenko.handler.ImageHandler;
-import com.denisfesenko.util.ImageBudget;
 import com.denisfesenko.handler.TableHandler;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
@@ -20,8 +18,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.HashSet;
-import java.util.Set;
 
 
 /**
@@ -32,7 +28,6 @@ import java.util.Set;
 public class HtmlToOpenXMLConverter {
 
     private final Map<String, TagHandler> tagHandlerMap;
-    private final Set<TagHandler> customHandlers = new HashSet<>();
 
     /**
      * Default constructor. Initializes the converter with default tag handlers.
@@ -50,7 +45,6 @@ public class HtmlToOpenXMLConverter {
         tagHandlerMap = new TagHandlerFactory().createTagHandlerMap();
         if (customTagHandlerMap != null) {
             tagHandlerMap.putAll(customTagHandlerMap);
-            customHandlers.addAll(customTagHandlerMap.values());
         }
     }
 
@@ -75,20 +69,8 @@ public class HtmlToOpenXMLConverter {
      */
     public WordprocessingMLPackage convert(String html, WordprocessingMLPackage wordMLPackage) {
         Document document = Jsoup.parseBodyFragment(html);
-        try (ImageBudget.Scope scope = ImageBudget.open(wordMLPackage)) {
-            traverseDocument(document, wordMLPackage);
-        }
+        traverseDocument(document, wordMLPackage);
         return wordMLPackage;
-    }
-
-    private void invokeHandler(TagHandler handler, WordprocessingMLPackage document, Runnable action) {
-        boolean custom = customHandlers.contains(handler) && handler.getClass() != ImageHandler.class;
-        if (custom) ImageBudget.invalidate(document);
-        try {
-            action.run();
-        } finally {
-            if (custom) ImageBudget.invalidate(document);
-        }
     }
 
     /**
@@ -119,17 +101,15 @@ public class HtmlToOpenXMLConverter {
                         Map<TagHandler, List<Node>> contexts = new LinkedHashMap<>();
                         activeTags.forEach(source -> contexts.computeIfAbsent(tagHandlerMap.get(source.nodeName()),
                                 handler -> new ArrayList<>()).add(source));
-                        contexts.forEach((handler, sources) -> invokeHandler(handler, wordMLPackage,
-                                () -> handler.handleTag(node, sources, wordMLPackage)));
-                        invokeHandler(tagHandler, wordMLPackage, () -> tagHandler.handleTag(node, wordMLPackage));
+                        contexts.forEach((handler, sources) -> handler.handleTag(node, sources, wordMLPackage));
+                        tagHandler.handleTag(node, wordMLPackage);
                     } else if (tagHandler instanceof TableHandler) {
-                        invokeHandler(tagHandler, wordMLPackage, () ->
-                                ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage));
+                        ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage);
                         return FilterResult.SKIP_CHILDREN;
                     } else if (tagHandler.isRepeatable()) {
                         activeTags.add(node);
                     } else {
-                        invokeHandler(tagHandler, wordMLPackage, () -> tagHandler.handleTag(node, wordMLPackage));
+                        tagHandler.handleTag(node, wordMLPackage);
                     }
                 }
                 return FilterResult.CONTINUE;
