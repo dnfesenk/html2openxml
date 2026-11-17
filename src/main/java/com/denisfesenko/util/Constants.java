@@ -15,8 +15,13 @@ public class Constants {
     public static final String STYLE = "style";
 
     /**
-     * The default style for a table that has no borders.
+     * The legacy substring used to recognize a borderless table.
+     *
+     * @deprecated Since 2.0.1, table borders are read with
+     * {@link ConverterUtils#getStyleProperty(String, String)} instead of substring matching.
+     * This constant is retained for compatibility.
      */
+    @Deprecated(since = "2.0.1", forRemoval = false)
     public static final String TABLE_BORDERLESS_STYLE = "border: none;";
 
     /**

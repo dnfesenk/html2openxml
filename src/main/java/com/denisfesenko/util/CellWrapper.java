@@ -8,6 +8,7 @@ import org.docx4j.wml.TcPr;
 import org.docx4j.wml.TcPrInner;
 
 import java.math.BigInteger;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -88,7 +89,7 @@ public class CellWrapper {
      * @return the current instance of the CellWrapper
      */
     public CellWrapper setMerge(String merge) {
-        this.merge = merge == null ? null : merge.trim().toLowerCase(java.util.Locale.ROOT);
+        this.merge = merge == null ? null : merge.trim().toLowerCase(Locale.ROOT);
         return this;
     }
 

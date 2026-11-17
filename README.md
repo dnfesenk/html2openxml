@@ -29,13 +29,16 @@ Add the following dependency to your `pom.xml`:
 <dependency>
   <groupId>com.denisfesenko</groupId>
   <artifactId>html2openxml</artifactId>
-  <version>2.0.1</version>
+  <version>2.0.0</version>
 </dependency>
 ```
 Or if you're using Gradle, add this to your `build.gradle`:
 ```groovy
-implementation 'com.denisfesenko:html2openxml:2.0.1'
+implementation 'com.denisfesenko:html2openxml:2.0.0'
 ```
+
+Version 2.0.0 is the published release used by the installation examples above.
+The changes planned for 2.0.1 are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Usage
 Here's a simple example of how to use **html2openxml** to convert HTML to a `.docx` file:
@@ -92,6 +95,10 @@ In 2.0.0 they are case-sensitive.
 In 2.0.0, borderless tables require the exact substring `border: none;` (case-insensitive).
 Since 2.0.1, `border` is parsed like other inline properties, so `border:none`
 works without spaces or a trailing semicolon, and the last declaration wins.
+This changes conflicting declarations: `border: none; border: 1px solid` is borderless in 2.0.0
+but has borders in 2.0.1. See the [2.0.1 release notes](CHANGELOG.md).
+Only the value `none` is recognized; `border:0` and `border:none !important` are not supported.
+Use a standalone `border:none` declaration (or `border: none;` for 2.0.0).
 
 `<font size="16">` and `<font size="16px">` both mean 16 pixels (12 points), **not** the legacy
 HTML font-size scale of 1–7. Use explicit `px` for clarity. Inline CSS `color`, `font-size`
