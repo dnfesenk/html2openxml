@@ -206,4 +206,29 @@ class ConversionRegressionTest {
         assertEquals(java.math.BigInteger.valueOf(5000), table.getTblPr().getTblW().getW());
     }
 
+    @Test
+    void borderlessStyleIgnoresSpacingCaseAndUsesLastDeclaration() throws Exception {
+        for (String style : new String[]{"border:none", "BORDER : NONE ;", "border:solid;border:none"}) {
+            Tbl table = (Tbl) converter.convert("<table style='" + style + "'><tr><td>A</td></tr></table>")
+                    .getMainDocumentPart().getContent().get(0);
+            assertEquals(STBorder.NONE, table.getTblPr().getTblBorders().getInsideH().getVal());
+        }
+        Tbl bordered = (Tbl) converter.convert("<table style='border:none;border:solid'><tr><td>A</td></tr></table>")
+                .getMainDocumentPart().getContent().get(0);
+        assertNull(bordered.getTblPr().getTblBorders());
+    }
+
+    @Test
+    void alignmentAndMergeAcceptMixedCaseButRejectUnknownValues() throws Exception {
+        P paragraph = (P) converter.convert("<p align=' Center '>A</p>")
+                .getMainDocumentPart().getContent().get(0);
+        assertEquals(JcEnumeration.CENTER, paragraph.getPPr().getJc().getVal());
+        Tbl table = (Tbl) converter.convert("<table><tr><td merge=' Restart '>A</td></tr><tr><td merge=' Continue '>B</td></tr></table>")
+                .getMainDocumentPart().getContent().get(0);
+        assertEquals("restart", ((Tc) ((Tr) table.getContent().get(0)).getContent().get(0)).getTcPr().getVMerge().getVal());
+        assertEquals("continue", ((Tc) ((Tr) table.getContent().get(1)).getContent().get(0)).getTcPr().getVMerge().getVal());
+        assertThrows(IllegalArgumentException.class, () -> converter.convert("<p align='middle'>A</p>"));
+        assertThrows(IllegalArgumentException.class, () -> converter.convert("<table><tr><td merge='other'>A</td></tr></table>"));
+    }
+
 }

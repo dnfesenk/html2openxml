@@ -47,7 +47,7 @@ public class TableHandler implements TagHandler {
             if (maxCols == 0) return;
             int cellWidthTwips = wordMLPackage.getDocumentModel().getSections().get(0).getPageDimensions().getWritableWidthTwips() / maxCols;
             Tbl table = createTableWithSettings(cellMatrix, maxCols, cellWidthTwips, docTable, wordMLPackage);
-            if (docTable.attributes().get(Constants.STYLE).toLowerCase().contains(Constants.TABLE_BORDERLESS_STYLE)) {
+            if ("none".equalsIgnoreCase(ConverterUtils.getStyleProperty(docTable.attr(Constants.STYLE), "border"))) {
                 ConverterUtils.setBorderlessStyle(table);
             }
             wordMLPackage.getMainDocumentPart().getContent().add(table);

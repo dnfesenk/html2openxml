@@ -88,7 +88,7 @@ public class CellWrapper {
      * @return the current instance of the CellWrapper
      */
     public CellWrapper setMerge(String merge) {
-        this.merge = merge;
+        this.merge = merge == null ? null : merge.trim().toLowerCase(java.util.Locale.ROOT);
         return this;
     }
 

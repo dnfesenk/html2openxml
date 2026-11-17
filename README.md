@@ -29,19 +29,19 @@ Add the following dependency to your `pom.xml`:
 <dependency>
   <groupId>com.denisfesenko</groupId>
   <artifactId>html2openxml</artifactId>
-  <version>2.0.0</version>
+  <version>2.0.1</version>
 </dependency>
 ```
 Or if you're using Gradle, add this to your `build.gradle`:
 ```groovy
-implementation 'com.denisfesenko:html2openxml:2.0.0'
+implementation 'com.denisfesenko:html2openxml:2.0.1'
 ```
 
 ## Usage
 Here's a simple example of how to use **html2openxml** to convert HTML to a `.docx` file:
 ```java
 import com.denisfesenko.converter.HtmlToOpenXMLConverter;
-import org.docx4j.openpackaging.exceptions.InvalidFormatException;
+import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 
 import java.io.File;
@@ -55,7 +55,7 @@ public class Main {
 
             File outputFile = new File("output.docx");
             wordDocument.save(outputFile);
-        } catch (InvalidFormatException e) {
+        } catch (Docx4JException e) {
             e.printStackTrace();
         }
     }
@@ -64,15 +64,16 @@ public class Main {
 
 ## Supported HTML Elements
 **html2openxml** supports the following HTML elements:
-- `<p>` - Paragraph
+- `<p>` - Paragraph; `align="left|right|center|justify"` and `style="text-indent:10px"`
 - `<b>`, `<strong>` - Bold
 - `<i>`, `<em>` - Italic
 - `<u>` - Underline
 - `<sub>` - Subscript
 - `<sup>` - Superscript
-- `<table>` - Table
+- `<table>` - Table; percentage `width` and `style="border:none"` for no borders
 - `<tr>` - Table Row
-- `<td>` - Table Cell
+- `<td>`, `<th>` - Table cells; `th` does not automatically add bold or centered text
+- `<font>` - Text color and size; `size` is measured in pixels, with an optional `px` suffix
 - `<span>` - Specifically dealing with background colors
 - `<hr>` - Horizontal rule
 - `<pb>` - Page Break
@@ -82,6 +83,23 @@ public class Main {
 Inline table/cell `width` percentages and paragraph `text-indent` pixels are parsed independently of
 whitespace, property/unit case and a trailing semicolon; the last declaration wins.
 
+Paragraph `align` accepts `left`, `right`, `center` and `justify`; other values raise
+`IllegalArgumentException`. Cells accept the custom attribute `merge="restart|continue"`
+for vertical merging; other nonempty values also raise `IllegalArgumentException`.
+Since 2.0.1, these values accept surrounding whitespace and any letter case.
+In 2.0.0 they are case-sensitive.
+
+In 2.0.0, borderless tables require the exact substring `border: none;` (case-insensitive).
+Since 2.0.1, `border` is parsed like other inline properties, so `border:none`
+works without spaces or a trailing semicolon, and the last declaration wins.
+
+`<font size="16">` and `<font size="16px">` both mean 16 pixels (12 points), **not** the legacy
+HTML font-size scale of 1–7. Use explicit `px` for clarity. Inline CSS `color`, `font-size`
+and `text-align` are not supported: use `<font color size>` and `<p align>` instead.
+
+Only first-row cell widths define the table column grid. Place percentage widths on that row;
+widths on later rows do not redefine the grid.
+
 Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
 
 Colors in `<font color>`, `<span style="background-color: ...">` and table cells support
@@ -89,7 +107,7 @@ Colors in `<font color>`, `<span style="background-color: ...">` and table cells
 Unsupported colors are ignored, preserving inherited formatting.
 
 ## Images
-The current source version supports inline images from Base64 data URIs, including images in table cells:
+Since 2.0.0, the library supports inline images from Base64 data URIs, including images in table cells:
 
 ```html
 <p>Before <img src="data:image/png;base64,..." width="200" alt="Chart"> after</p>

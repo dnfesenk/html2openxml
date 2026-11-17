@@ -21,7 +21,7 @@ public class JcEnumMapper {
 
         JcEnumeration jcEnumeration;
 
-        switch (align) {
+        switch (align.trim().toLowerCase(java.util.Locale.ROOT)) {
             case "left":
                 jcEnumeration = JcEnumeration.LEFT;
                 break;
