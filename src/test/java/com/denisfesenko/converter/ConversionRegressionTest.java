@@ -227,8 +227,8 @@ class ConversionRegressionTest {
                 .getMainDocumentPart().getContent().get(0);
         assertEquals("restart", ((Tc) ((Tr) table.getContent().get(0)).getContent().get(0)).getTcPr().getVMerge().getVal());
         assertEquals("continue", ((Tc) ((Tr) table.getContent().get(1)).getContent().get(0)).getTcPr().getVMerge().getVal());
-        assertThrows(IllegalArgumentException.class, () -> converter.convert("<p align='middle'>A</p>"));
-        assertThrows(IllegalArgumentException.class, () -> converter.convert("<table><tr><td merge='other'>A</td></tr></table>"));
+        assertThrows(IllegalArgumentException.class, () -> new HtmlToOpenXMLConverter(true).convert("<p align='middle'>A</p>"));
+        assertThrows(IllegalArgumentException.class, () -> new HtmlToOpenXMLConverter(true).convert("<table><tr><td merge='other'>A</td></tr></table>"));
     }
 
 }

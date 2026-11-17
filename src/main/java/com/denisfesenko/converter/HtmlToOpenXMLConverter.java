@@ -30,10 +30,10 @@ public class HtmlToOpenXMLConverter {
     private final Map<String, TagHandler> tagHandlerMap;
 
     /**
-     * Default constructor. Initializes the converter with default tag handlers.
+     * Initializes default tag handlers with lenient validation of alignment and merge values.
      */
     public HtmlToOpenXMLConverter() {
-        this(null);
+        this(null, false);
     }
 
     /**
@@ -42,7 +42,30 @@ public class HtmlToOpenXMLConverter {
      * @param customTagHandlerMap a map of custom tag handlers to be added to the default tag handlers
      */
     public HtmlToOpenXMLConverter(Map<String, TagHandler> customTagHandlerMap) {
-        tagHandlerMap = new TagHandlerFactory().createTagHandlerMap();
+        this(customTagHandlerMap, false);
+    }
+
+    /**
+     * Initializes default handlers with optional strict validation.
+     *
+     * @param strictValidation true to reject unknown paragraph align and cell merge values;
+     *                         false to ignore these values and preserve document content
+     */
+    public HtmlToOpenXMLConverter(boolean strictValidation) {
+        this(null, strictValidation);
+    }
+
+    /**
+     * Initializes built-in handlers with optional strict validation and adds custom handlers.
+     * The validation option applies to built-in paragraph and table handlers. Custom handlers
+     * retain responsibility for their own validation and exceptions.
+     * Image validation and resource limits are always enforced in either mode.
+     *
+     * @param customTagHandlerMap handlers that override or extend the defaults, or null
+     * @param strictValidation whether unknown paragraph align and cell merge values cause errors
+     */
+    public HtmlToOpenXMLConverter(Map<String, TagHandler> customTagHandlerMap, boolean strictValidation) {
+        tagHandlerMap = new TagHandlerFactory().createTagHandlerMap(strictValidation);
         if (customTagHandlerMap != null) {
             tagHandlerMap.putAll(customTagHandlerMap);
         }

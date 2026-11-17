@@ -26,6 +26,24 @@ import java.util.List;
  */
 public class TableHandler implements TagHandler {
 
+    private final boolean strictValidation;
+
+    /**
+     * Creates a standalone handler with the historical strict validation behavior.
+     */
+    public TableHandler() {
+        this(true);
+    }
+
+    /**
+     * Creates a handler with optional strict attribute validation.
+     *
+     * @param strictValidation whether unknown merge values cause errors
+     */
+    public TableHandler(boolean strictValidation) {
+        this.strictValidation = strictValidation;
+    }
+
     private HtmlToOpenXMLConverter converter;
 
     /**
@@ -109,6 +127,10 @@ public class TableHandler implements TagHandler {
             for (int j = 0; j < tds.size(); j++) {
                 cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setStyle(tds.get(j).attr(Constants.STYLE))
                         .setMerge(tds.get(j).attr("merge")).setColspan(parseColspan(tds.get(j).attr("colspan")));
+                String merge = cellMatrix[i][j].getMerge();
+                if (!strictValidation && !"restart".equals(merge) && !"continue".equals(merge)) {
+                    cellMatrix[i][j].setMerge("");
+                }
             }
         }
         return cellMatrix;

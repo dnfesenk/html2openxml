@@ -6,7 +6,7 @@
 
     <groupId>com.denisfesenko</groupId>
     <artifactId>html2openxml</artifactId>
-    <version>2.0.1</version>
+    <version>2.1.0-SNAPSHOT</version>
 
     <name>HTML to OpenXML Converter</name>
     <description>A Java library for converting HTML content to OpenXML format.</description>

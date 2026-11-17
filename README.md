@@ -6,6 +6,7 @@
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
+- [Attribute Validation](#attribute-validation)
 - [Supported HTML Elements](#supported-html-elements)
 - [Images](#images)
 - [Custom Tag Handlers](#custom-tag-handlers)
@@ -65,6 +66,35 @@ public class Main {
 }
 ```
 
+## Attribute Validation
+
+**Since 2.1.0 (currently in development)**, the default converter ignores unknown paragraph
+`align` and cell `merge` values while preserving their text and other supported formatting:
+
+```java
+var converter = new HtmlToOpenXMLConverter(); // lenient by default
+var document = converter.convert("<p align='middle'>Text is preserved</p>");
+```
+
+To retain the validation behavior of 2.0.x, enable strict validation explicitly:
+
+```java
+var converter = new HtmlToOpenXMLConverter(true); // strictValidation
+// Unknown align or merge values raise IllegalArgumentException.
+```
+
+Custom handlers can be combined with either mode using
+`new HtmlToOpenXMLConverter(customHandlers, true)` (strict) or
+`new HtmlToOpenXMLConverter(customHandlers, false)` (lenient). The existing map-only constructor
+is lenient in 2.1.0. The mode applies to built-in paragraph and table handlers, including conversions
+inside nested table cells. Custom handlers retain their own validation behavior and their exceptions
+are propagated. Standalone `ParagraphHandler()` and `TableHandler()` retain strict behavior;
+use their boolean constructors to configure replacements explicitly.
+
+This option only controls unknown `align` and `merge` values. Image validation, resource limits,
+custom-handler failures and document-writing errors remain enforced in both modes. Strict mode
+does not validate arbitrary HTML or all CSS properties.
+
 ## Supported HTML Elements
 **html2openxml** supports the following HTML elements:
 - `<p>` - Paragraph; `align="left|right|center|justify"` and `style="text-indent:10px"`
@@ -86,9 +116,10 @@ public class Main {
 Inline table/cell `width` percentages and paragraph `text-indent` pixels are parsed independently of
 whitespace, property/unit case and a trailing semicolon; the last declaration wins.
 
-Paragraph `align` accepts `left`, `right`, `center` and `justify`; other values raise
-`IllegalArgumentException`. Cells accept the custom attribute `merge="restart|continue"`
-for vertical merging; other nonempty values also raise `IllegalArgumentException`.
+Paragraph `align` accepts `left`, `right`, `center` and `justify`. Cells accept the custom
+attribute `merge="restart|continue"` for vertical merging. In 2.0.x, unknown values raise
+`IllegalArgumentException`. Since 2.1.0, they are ignored by default and rejected only in
+[strict mode](#attribute-validation).
 Since 2.0.1, these values accept surrounding whitespace and any letter case.
 In 2.0.0 they are case-sensitive.
 

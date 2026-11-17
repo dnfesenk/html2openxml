@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.1.0 — Unreleased
+
+### Changed
+
+- Default converters, including the existing map-only constructor, now ignore unknown paragraph
+  `align` and cell `merge` values. Text, other formatting and remaining document content are retained.
+- Add `HtmlToOpenXMLConverter(boolean strictValidation)` and
+  `HtmlToOpenXMLConverter(Map<String, TagHandler>, boolean strictValidation)` to opt into the
+  2.0.x behavior: unknown alignment and merge values raise `IllegalArgumentException`.
+- The chosen mode applies to built-in paragraph and table handlers, including nested table cells.
+  Standalone handler constructors retain their historical strict behavior; boolean overloads allow
+  explicitly configuring replacement handlers.
+
+### Compatibility notes
+
+- **Behavior change:** callers relying on exceptions for unknown `align` or `merge` values must
+  use `new HtmlToOpenXMLConverter(true)` or the map-plus-boolean constructor with `true`.
+- This is limited attribute validation, not a full HTML/CSS validator. Image checks and resource
+  limits still apply; custom-handler and document-operation failures are not swallowed.
+- 2.1.0 is not published. Installation examples and the public demo remain on 2.0.1.
+
 ## 2.0.1 — 2026-11-18
 
 ### Fixes

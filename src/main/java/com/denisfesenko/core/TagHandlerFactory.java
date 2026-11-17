@@ -33,10 +33,20 @@ public class TagHandlerFactory {
      * @return A map of supported HTML tags and their corresponding handlers.
      */
     public Map<String, TagHandler> createTagHandlerMap() {
+        return createTagHandlerMap(false);
+    }
+
+    /**
+     * Creates built-in handlers with the chosen attribute validation policy.
+     *
+     * @param strictValidation whether unknown paragraph align and cell merge values cause errors
+     * @return default tag handlers with the requested validation policy
+     */
+    public Map<String, TagHandler> createTagHandlerMap(boolean strictValidation) {
         Map<String, TagHandler> tagHandlerMap = new HashMap<>();
         tagHandlerMap.put("img", new ImageHandler());
         tagHandlerMap.put("font", new FontHandler());
-        tagHandlerMap.put("table", new TableHandler());
+        tagHandlerMap.put("table", new TableHandler(strictValidation));
         tagHandlerMap.put("sub", new SubHandler());
         tagHandlerMap.put("sup", new SupHandler());
         tagHandlerMap.put("hr", new HrHandler());
@@ -44,7 +54,7 @@ public class TagHandlerFactory {
         tagHandlerMap.put("span", new SpanHandler());
         tagHandlerMap.put("br", new BreakHandler());
         tagHandlerMap.put("pb", new PageBreakHandler());
-        tagHandlerMap.put("p", new ParagraphHandler());
+        tagHandlerMap.put("p", new ParagraphHandler(strictValidation));
         tagHandlerMap.put("b", new BoldHandler());
         tagHandlerMap.put("strong", new BoldHandler());
         tagHandlerMap.put("i", new ItalicHandler());

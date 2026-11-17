@@ -17,6 +17,18 @@ public class JcEnumMapper {
      * @throws IllegalArgumentException If the input string doesn't match any JcEnumeration constant.
      */
     public static JcEnumeration map(String align) {
+        return map(align, true);
+    }
+
+    /**
+     * Maps an alignment, optionally ignoring unknown values.
+     *
+     * @param align alignment to normalize and map
+     * @param strictValidation whether unknown values cause an exception
+     * @return the mapped alignment, or null for absent or ignored values
+     * @throws IllegalArgumentException if strict validation is enabled and the value is unknown
+     */
+    public static JcEnumeration map(String align, boolean strictValidation) {
         if (align == null) {
             return null;
         }
@@ -37,7 +49,8 @@ public class JcEnumMapper {
                 jcEnumeration = JcEnumeration.BOTH;
                 break;
             default:
-                throw new IllegalArgumentException("Unexpected align value: " + align);
+                if (strictValidation) throw new IllegalArgumentException("Unexpected align value: " + align);
+                return null;
         }
 
         return jcEnumeration;
