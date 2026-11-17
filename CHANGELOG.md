@@ -2,6 +2,16 @@
 
 ## 2.1.0 — Unreleased
 
+### Added
+
+- Basic inline `color`, `font-size` (`px`/`pt`), `font-weight` (`normal`, `bold`, 100–900),
+  `font-style` (`normal`, `italic`, `oblique`) and paragraph `text-align`.
+- Inherited text styles survive cell fragment conversion, including nested tables. Inner styles
+  override outer styles and restore correctly after closing tags. CSS on an element takes precedence
+  over that element's legacy font attributes and bold/italic tags; `normal` explicitly clears emphasis.
+- Unsupported CSS values are ignored in either validation mode. Stylesheet selectors, `!important`,
+  relative font sizes/weights and general browser layout remain unsupported.
+
 ### Changed
 
 - Default converters, including the existing map-only constructor, now ignore unknown paragraph

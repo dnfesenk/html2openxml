@@ -6,6 +6,7 @@
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
+- [Inline CSS](#inline-css)
 - [Attribute Validation](#attribute-validation)
 - [Supported HTML Elements](#supported-html-elements)
 - [Images](#images)
@@ -66,6 +67,40 @@ public class Main {
 }
 ```
 
+## Inline CSS
+
+**Since 2.1.0 (currently in development)**, inline text styles can be used directly, including
+markup commonly produced by rich text editors:
+
+```html
+<p style="text-align:center;color:rebeccapurple;font-size:12pt">
+  Regular <span style="font-weight:700;font-style:italic">emphasis</span>
+</p>
+```
+
+| Property | Supported values |
+| --- | --- |
+| `color` | `#RGB`, `#RRGGBB`, `rgb(r,g,b)` and the 148 CSS named colors |
+| `font-size` | Positive decimal `px` or `pt` values; 16px = 12pt |
+| `font-weight` | `normal`, `bold`, and 100–900 in steps of 100; 600 and above become bold |
+| `font-style` | `normal`, `italic`, `oblique` (rendered as italic) |
+| `text-align` | `left`, `right`, `center`, `justify` on paragraphs |
+
+Text properties inherit from ancestors, including table and cell styles. An inner declaration
+can override an outer one; `normal` clears inherited bold or italic. Semantic tags and CSS are
+applied from outer elements to inner elements, with CSS taking priority over the same element's
+legacy attributes or semantic formatting. For example, `<b style="font-weight:normal">` is not bold,
+while a nested `<b>` inside an element with `font-weight:normal` is bold. Paragraph alignment also
+inherits from styled block ancestors; an explicit paragraph `align` overrides inherited alignment,
+and a valid `text-align` on that paragraph overrides `align`.
+
+Declarations accept property/value case and surrounding whitespace, and do not require a trailing
+semicolon; the last declaration of each property is used. Unsupported values are ignored, preserving
+inherited values, in both validation modes. This is a limited parser: external stylesheets, selectors,
+`!important`, relative font sizes, font-size keywords and relative weights (`bolder`/`lighter`) are
+not supported. Pixel/point sizes are rounded to Word half-points. In 2.0.x use `<font color size>`,
+`<b>`, `<i>` and `<p align>` instead; the published demo remains on 2.0.1 until the 2.1.0 release.
+
 ## Attribute Validation
 
 **Since 2.1.0 (currently in development)**, the default converter ignores unknown paragraph
@@ -107,7 +142,7 @@ does not validate arbitrary HTML or all CSS properties.
 - `<tr>` - Table Row
 - `<td>`, `<th>` - Table cells; `th` does not automatically add bold or centered text
 - `<font>` - Text color and size; `size` is measured in pixels, with an optional `px` suffix
-- `<span>` - Specifically dealing with background colors
+- `<span>` - Background colors and, since 2.1.0, inline text styles
 - `<hr>` - Horizontal rule
 - `<pb>` - Page Break
 - `<br>` - Line Break
@@ -132,8 +167,8 @@ Only the value `none` is recognized; `border:0` and `border:none !important` are
 Use a standalone `border:none` declaration (or `border: none;` for 2.0.0).
 
 `<font size="16">` and `<font size="16px">` both mean 16 pixels (12 points), **not** the legacy
-HTML font-size scale of 1–7. Use explicit `px` for clarity. Inline CSS `color`, `font-size`
-and `text-align` are not supported: use `<font color size>` and `<p align>` instead.
+HTML font-size scale of 1–7. Use explicit `px` for clarity. In 2.0.x, inline CSS `color`,
+`font-size` and `text-align` are not supported; since 2.1.0 see [Inline CSS](#inline-css).
 
 Only first-row cell widths define the table column grid. Place percentage widths on that row;
 widths on later rows do not redefine the grid.

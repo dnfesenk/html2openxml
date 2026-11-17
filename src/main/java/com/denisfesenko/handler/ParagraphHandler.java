@@ -14,6 +14,7 @@ import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.PPr;
 import org.docx4j.wml.PPrBase;
 import org.jsoup.nodes.Node;
+import org.jsoup.nodes.Element;
 
 /**
  * This class handles the conversion of HTML paragraphs to WordprocessingMLPackage format.
@@ -50,6 +51,13 @@ public class ParagraphHandler implements TagHandler {
         String indent = ConverterUtils.getStyleMeasurement(style, "text-indent", "px");
         String align = StringUtils.isNotBlank(node.attr("align")) ? node.attr("align") : null;
         JcEnumeration alignment = JcEnumMapper.map(align, strictValidation);
+        JcEnumeration cssAlignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(style, "text-align"), false);
+        if (cssAlignment != null) alignment = cssAlignment;
+        for (Node ancestor = node.parentNode(); alignment == null && ancestor != null; ancestor = ancestor.parentNode()) {
+            if (ancestor instanceof Element && ((Element) ancestor).isBlock()) {
+                alignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(ancestor.attr("style"), "text-align"), false);
+            }
+        }
         PPr pPr = null;
         if (alignment != null || indent != null) {
             ObjectFactory objectFactory = RunUtils.getObjectFactory();

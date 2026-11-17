@@ -3,6 +3,13 @@ package com.denisfesenko.converter;
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.core.TagHandlerFactory;
 import com.denisfesenko.handler.PlainTextHandler;
+import com.denisfesenko.handler.BoldHandler;
+import com.denisfesenko.handler.ItalicHandler;
+import com.denisfesenko.handler.FontHandler;
+import com.denisfesenko.handler.SpanHandler;
+import com.denisfesenko.handler.UnderlineHandler;
+import com.denisfesenko.handler.SubHandler;
+import com.denisfesenko.handler.SupHandler;
 import com.denisfesenko.handler.TableHandler;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
@@ -18,6 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Collections;
 
 
 /**
@@ -26,6 +36,9 @@ import java.util.Map;
  * @author Denis Fesenko &lt;fesenkoden@gmail.com&gt;
  */
 public class HtmlToOpenXMLConverter {
+
+    private static final Set<Class<?>> BUILT_IN_FORMATTING = Set.of(BoldHandler.class, ItalicHandler.class,
+            FontHandler.class, SpanHandler.class, UnderlineHandler.class, SubHandler.class, SupHandler.class);
 
     private final Map<String, TagHandler> tagHandlerMap;
 
@@ -124,7 +137,25 @@ public class HtmlToOpenXMLConverter {
                         Map<TagHandler, List<Node>> contexts = new LinkedHashMap<>();
                         activeTags.forEach(source -> contexts.computeIfAbsent(tagHandlerMap.get(source.nodeName()),
                                 handler -> new ArrayList<>()).add(source));
-                        contexts.forEach((handler, sources) -> handler.handleTag(node, sources, wordMLPackage));
+                        // Apply semantic tags and CSS in DOM order so inner elements can override
+                        // inherited formatting. Legacy custom handlers still run once per text node.
+                        List<Node> ancestors = new ArrayList<>();
+                        for (Node source = node.parentNode(); source != null; source = source.parentNode()) {
+                            ancestors.add(source);
+                        }
+                        Collections.reverse(ancestors);
+                        Set<TagHandler> invokedCustomHandlers = new HashSet<>();
+                        for (Node source : ancestors) {
+                            TagHandler handler = tagHandlerMap.get(source.nodeName());
+                            if (handler != null && contexts.containsKey(handler)) {
+                                if (BUILT_IN_FORMATTING.contains(handler.getClass())) {
+                                    handler.handleTag(node, List.of(source), wordMLPackage);
+                                } else if (invokedCustomHandlers.add(handler)) {
+                                    handler.handleTag(node, contexts.get(handler), wordMLPackage);
+                                }
+                            }
+                            InlineCss.apply(source, wordMLPackage);
+                        }
                         tagHandler.handleTag(node, wordMLPackage);
                     } else if (tagHandler instanceof TableHandler) {
                         ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage);
