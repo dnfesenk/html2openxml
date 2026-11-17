@@ -4,6 +4,11 @@
 
 ### Added
 
+- GitHub Actions CI for Java 11/17/25 runtime coverage. Every matrix entry runs Maven verify;
+  the Java 11 entry uses JDK 17 for the full JUnit 6 suite, then a real JDK 11 for the README smoke.
+  Smoke checks compile the actual Usage example with `--release 11`, run the packaged library,
+  validate the DOCX output and check the library's Java 11 bytecode. Failed jobs retain test reports.
+
 - Basic inline `color`, `font-size` (`px`/`pt`), `font-weight` (`normal`, `bold`, 100–900),
   `font-style` (`normal`, `italic`, `oblique`) and paragraph `text-align`.
 - Inherited text styles survive cell fragment conversion, including nested tables. Inner styles

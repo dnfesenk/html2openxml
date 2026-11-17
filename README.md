@@ -3,8 +3,11 @@
 **html2openxml** is a Java library that converts HTML content to OpenXML format (Microsoft Word `.docx` format), supporting common HTML elements like paragraphs, bold, italic, underline, tables, and more. Built using [docx4j](https://www.docx4java.org/) and [Jsoup](https://jsoup.org/), you can try a live demo of this library at https://html2openxml-demo.herokuapp.com/.
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.denisfesenko/html2openxml)](https://central.sonatype.com/artifact/com.denisfesenko/html2openxml)
+[![CI](https://github.com/dnfesenk/html2openxml/actions/workflows/ci.yml/badge.svg)](https://github.com/dnfesenk/html2openxml/actions/workflows/ci.yml)
+
 ## Table of Contents
 - [Installation](#installation)
+- [Continuous Integration](#continuous-integration)
 - [Usage](#usage)
 - [Inline CSS](#inline-css)
 - [Attribute Validation](#attribute-validation)
@@ -41,6 +44,36 @@ implementation 'com.denisfesenko:html2openxml:2.0.1'
 
 Version 2.0.1 is published in Maven Central. See [CHANGELOG.md](CHANGELOG.md) for fixes
 and compatibility notes.
+
+## Continuous Integration
+
+[GitHub Actions](https://github.com/dnfesenk/html2openxml/actions/workflows/ci.yml) runs on pull
+requests, pushes to `main`, release tags and manual dispatch. Every matrix entry runs
+`mvn clean verify`, builds the runtime dependency classpath, then compiles the actual README Usage
+example with `javac --release 11`, runs it against the packaged JAR and checks its DOCX output.
+The smoke check also verifies every library class has a bytecode major version no greater than 55.
+
+| Runtime smoke check | Build and full JUnit suite |
+| --- | --- |
+| Java 11 | JDK 17 |
+| Java 17 | JDK 17 |
+| Java 25 | JDK 25 |
+
+[JUnit 6 requires Java 17+](https://junit.org/), so the Java 11 matrix entry builds and runs the
+full test suite on JDK 17 before switching to an actual JDK 11 for compilation and execution of
+the README example. No JUnit tests are skipped. CI uses no release profile or publication secrets.
+
+Run the same smoke check locally with the desired runtime in `JAVA_HOME`:
+
+```sh
+mvn --batch-mode --no-transfer-progress clean verify \
+  org.apache.maven.plugins:maven-dependency-plugin:3.7.0:build-classpath \
+  -DincludeScope=runtime -Dmdep.outputFile=target/runtime-classpath.txt
+python3 scripts/readme_smoke.py
+```
+
+The Maven command requires JDK 17+; for the Java 11 runtime check, switch `JAVA_HOME` to JDK 11
+only before running the Python script. Python 3 and a full JDK (including `javac`) are required.
 
 ## Usage
 Here's a simple example of how to use **html2openxml** to convert HTML to a `.docx` file:
