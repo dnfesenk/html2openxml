@@ -2,6 +2,8 @@ package com.denisfesenko.util;
 
 import org.docx4j.wml.JcEnumeration;
 
+import java.util.Locale;
+
 /**
  * JcEnumMapper is a utility class that maps string values to their corresponding JcEnumeration constants.
  */
@@ -21,7 +23,7 @@ public class JcEnumMapper {
 
         JcEnumeration jcEnumeration;
 
-        switch (align) {
+        switch (align.trim().toLowerCase(Locale.ROOT)) {
             case "left":
                 jcEnumeration = JcEnumeration.LEFT;
                 break;
