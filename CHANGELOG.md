@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.1 — Unreleased
+## 2.0.1 — 2026-11-18
 
 ### Fixes
 
@@ -23,7 +23,7 @@
 
 ### Demo upgrade checklist
 
-Deploy these changes together only after 2.0.1 is available from Maven Central:
+When upgrading the demo from 2.0.0 to this release, deploy these changes together:
 
 - Change the demo dependency, displayed version and version-specific documentation to 2.0.1.
 - Remove “Use lowercase” from the `align` and `merge` validation messages.

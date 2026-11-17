@@ -29,16 +29,16 @@ Add the following dependency to your `pom.xml`:
 <dependency>
   <groupId>com.denisfesenko</groupId>
   <artifactId>html2openxml</artifactId>
-  <version>2.0.0</version>
+  <version>2.0.1</version>
 </dependency>
 ```
 Or if you're using Gradle, add this to your `build.gradle`:
 ```groovy
-implementation 'com.denisfesenko:html2openxml:2.0.0'
+implementation 'com.denisfesenko:html2openxml:2.0.1'
 ```
 
-Version 2.0.0 is the published release used by the installation examples above.
-The changes planned for 2.0.1 are listed in [CHANGELOG.md](CHANGELOG.md).
+Version 2.0.1 is published in Maven Central. See [CHANGELOG.md](CHANGELOG.md) for fixes
+and compatibility notes.
 
 ## Usage
 Here's a simple example of how to use **html2openxml** to convert HTML to a `.docx` file:
