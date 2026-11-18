@@ -54,7 +54,7 @@ public class FontHandler implements TagHandler {
         BigInteger fontSize = ConverterUtils.scaleDecimal(nodeSize, "1.5");
         if (fontSize != null && fontSize.signum() > 0) {
             HpsMeasure hpsMeasure = objectFactory.createHpsMeasure();
-            hpsMeasure.setVal(fontSize);
+            hpsMeasure.setVal(fontSize.min(BigInteger.valueOf(3276)));
             rPr.setSz(hpsMeasure);
             rPr.setSzCs(hpsMeasure);
         }

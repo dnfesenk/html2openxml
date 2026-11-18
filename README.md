@@ -3,9 +3,14 @@
 **html2openxml** is a Java library that converts HTML content to OpenXML format (Microsoft Word `.docx` format), supporting common HTML elements like paragraphs, bold, italic, underline, tables, and more. Built using [docx4j](https://www.docx4java.org/) and [Jsoup](https://jsoup.org/), you can try a live demo of this library at https://html2openxml-demo.herokuapp.com/.
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.denisfesenko/html2openxml)](https://central.sonatype.com/artifact/com.denisfesenko/html2openxml)
+[![CI](https://github.com/dnfesenk/html2openxml/actions/workflows/ci.yml/badge.svg)](https://github.com/dnfesenk/html2openxml/actions/workflows/ci.yml)
+
 ## Table of Contents
 - [Installation](#installation)
+- [Continuous Integration](#continuous-integration)
 - [Usage](#usage)
+- [Inline CSS](#inline-css)
+- [Attribute Validation](#attribute-validation)
 - [Supported HTML Elements](#supported-html-elements)
 - [Images](#images)
 - [Custom Tag Handlers](#custom-tag-handlers)
@@ -40,6 +45,37 @@ implementation 'com.denisfesenko:html2openxml:2.0.1'
 Version 2.0.1 is published in Maven Central. See [CHANGELOG.md](CHANGELOG.md) for fixes
 and compatibility notes.
 
+## Continuous Integration
+
+[GitHub Actions](https://github.com/dnfesenk/html2openxml/actions/workflows/ci.yml) runs on pull
+requests, pushes to `main`, release tags and manual dispatch. Every matrix entry runs
+`mvn clean verify`, builds the runtime dependency classpath, then compiles the actual README Usage
+example with `javac --release 11`, runs it against the packaged JAR and checks its DOCX output.
+The smoke check also verifies every library class has a bytecode major version no greater than 55.
+
+| Runtime smoke check | Build and JUnit suite |
+| --- | --- |
+| Java 11 | JDK 17, `mvn verify -DskipTests` |
+| Java 17 | JDK 17 |
+| Java 25 | JDK 25 |
+
+[JUnit 6 requires Java 17+](https://junit.org/), so the Java 11 matrix entry builds on JDK 17
+with `-DskipTests` before switching to an actual JDK 11 for compilation and execution of the
+README example. The Java 17 and Java 25 entries each run the full suite; it is not repeated in
+the Java 11 job. CI uses no release profile or publication secrets.
+
+Run the same smoke check locally with the desired runtime in `JAVA_HOME`:
+
+```sh
+mvn --batch-mode --no-transfer-progress clean verify \
+  org.apache.maven.plugins:maven-dependency-plugin:3.7.0:build-classpath \
+  -DincludeScope=runtime -Dmdep.outputFile=target/runtime-classpath.txt
+python3 scripts/readme_smoke.py
+```
+
+The Maven command requires JDK 17+; for the Java 11 runtime check, switch `JAVA_HOME` to JDK 11
+only before running the Python script. Python 3 and a full JDK (including `javac`) are required.
+
 ## Usage
 Here's a simple example of how to use **html2openxml** to convert HTML to a `.docx` file:
 ```java
@@ -65,6 +101,80 @@ public class Main {
 }
 ```
 
+## Inline CSS
+
+**Since 2.1.0 (currently in development)**, inline text styles can be used directly, including
+markup commonly produced by rich text editors:
+
+```html
+<p style="text-align:center;color:rebeccapurple;font-size:12pt">
+  Regular <span style="font-weight:700;font-style:italic">emphasis</span>
+</p>
+```
+
+| Property | Supported values |
+| --- | --- |
+| `color` | `#RGB`, `#RRGGBB`, `rgb(r,g,b)` and the 148 CSS named colors |
+| `font-size` | Positive decimal `px` or `pt` values; 16px = 12pt |
+| `font-weight` | `normal`, `bold`, and 100–900 in steps of 100; 600 and above become bold |
+| `font-style` | `normal`, `italic`, `oblique` (rendered as italic) |
+| `text-align` | `left`, `right`, `center`, `justify` on explicit and implicit paragraphs |
+
+Text properties inherit from ancestors, including table and cell styles. An inner declaration
+can override an outer one; `normal` clears inherited bold or italic. Semantic tags and CSS are
+applied from outer elements to inner elements, with CSS taking priority over the same element's
+legacy attributes or semantic formatting. For example, `<b style="font-weight:normal">` is not bold,
+while a nested `<b>` inside an element with `font-weight:normal` is bold. Paragraph alignment also
+inherits from styled block ancestors; an explicit paragraph `align` overrides inherited alignment,
+and a valid `text-align` on that paragraph overrides `align`. Bare text in block elements and
+cells also inherits alignment, without requiring a `<p>` wrapper:
+
+```html
+<td style="text-align:center">Centered cell text</td>
+<div style="text-align:right">Right-aligned text</div>
+```
+
+Text in separate block elements starts separate paragraphs, so alignment does not leak between
+adjacent or nested blocks. This also applies when a cell contains only an image, an image before
+text, or a leading `<br>`. A `text-align` on an inline `<span>` does not realign the paragraph.
+
+Declarations accept property/value case and surrounding whitespace, and do not require a trailing
+semicolon; the last declaration of each property is used. Unsupported values are ignored, preserving
+inherited values, in both validation modes. This is a limited parser: external stylesheets, selectors,
+`!important`, relative font sizes, font-size keywords and relative weights (`bolder`/`lighter`) are
+not supported. Pixel/point sizes are rounded to Word half-points and capped at 3276 half-points
+(1638pt), including legacy `<font size>` values. In 2.0.x use `<font color size>`,
+`<b>`, `<i>` and `<p align>` instead; the published demo remains on 2.0.1 until the 2.1.0 release.
+
+## Attribute Validation
+
+**Since 2.1.0 (currently in development)**, the default converter ignores unknown paragraph
+`align` and cell `merge` values while preserving their text and other supported formatting:
+
+```java
+var converter = new HtmlToOpenXMLConverter(); // lenient by default
+var document = converter.convert("<p align='middle'>Text is preserved</p>");
+```
+
+To retain the validation behavior of 2.0.x, enable strict validation explicitly:
+
+```java
+var converter = new HtmlToOpenXMLConverter(true); // strictValidation
+// Unknown align or merge values raise IllegalArgumentException.
+```
+
+Custom handlers can be combined with either mode using
+`new HtmlToOpenXMLConverter(customHandlers, true)` (strict) or
+`new HtmlToOpenXMLConverter(customHandlers, false)` (lenient). The existing map-only constructor
+is lenient in 2.1.0. The mode applies to built-in paragraph and table handlers, including conversions
+inside nested table cells. Custom handlers retain their own validation behavior and their exceptions
+are propagated. Standalone `ParagraphHandler()` and `TableHandler()` retain strict behavior;
+use their boolean constructors to configure replacements explicitly.
+
+This option only controls unknown `align` and `merge` values. Image validation, resource limits,
+custom-handler failures and document-writing errors remain enforced in both modes. Strict mode
+does not validate arbitrary HTML or all CSS properties.
+
 ## Supported HTML Elements
 **html2openxml** supports the following HTML elements:
 - `<p>` - Paragraph; `align="left|right|center|justify"` and `style="text-indent:10px"`
@@ -77,7 +187,7 @@ public class Main {
 - `<tr>` - Table Row
 - `<td>`, `<th>` - Table cells; `th` does not automatically add bold or centered text
 - `<font>` - Text color and size; `size` is measured in pixels, with an optional `px` suffix
-- `<span>` - Specifically dealing with background colors
+- `<span>` - Background colors and, since 2.1.0, inline text styles
 - `<hr>` - Horizontal rule
 - `<pb>` - Page Break
 - `<br>` - Line Break
@@ -86,9 +196,10 @@ public class Main {
 Inline table/cell `width` percentages and paragraph `text-indent` pixels are parsed independently of
 whitespace, property/unit case and a trailing semicolon; the last declaration wins.
 
-Paragraph `align` accepts `left`, `right`, `center` and `justify`; other values raise
-`IllegalArgumentException`. Cells accept the custom attribute `merge="restart|continue"`
-for vertical merging; other nonempty values also raise `IllegalArgumentException`.
+Paragraph `align` accepts `left`, `right`, `center` and `justify`. Cells accept the custom
+attribute `merge="restart|continue"` for vertical merging. In 2.0.x, unknown values raise
+`IllegalArgumentException`. Since 2.1.0, they are ignored by default and rejected only in
+[strict mode](#attribute-validation).
 Since 2.0.1, these values accept surrounding whitespace and any letter case.
 In 2.0.0 they are case-sensitive.
 
@@ -101,8 +212,8 @@ Only the value `none` is recognized; `border:0` and `border:none !important` are
 Use a standalone `border:none` declaration (or `border: none;` for 2.0.0).
 
 `<font size="16">` and `<font size="16px">` both mean 16 pixels (12 points), **not** the legacy
-HTML font-size scale of 1–7. Use explicit `px` for clarity. Inline CSS `color`, `font-size`
-and `text-align` are not supported: use `<font color size>` and `<p align>` instead.
+HTML font-size scale of 1–7. Use explicit `px` for clarity. In 2.0.x, inline CSS `color`,
+`font-size` and `text-align` are not supported; since 2.1.0 see [Inline CSS](#inline-css).
 
 Only first-row cell widths define the table column grid. Place percentage widths on that row;
 widths on later rows do not redefine the grid.
@@ -154,6 +265,11 @@ constructor changes only the per-image limit and keeps the default document budg
 Oversized inputs raise `IllegalArgumentException`.
 
 ## Custom Tag Handlers
+
+The tag name `html2openxml-inherited-style` is reserved for internal cell-style wrappers and
+cannot be registered as a custom handler (case-insensitive). These wrappers carry inherited CSS
+without invoking user handlers for `div` or re-running handlers from outside a table.
+
 You can extend the functionality of **html2openxml** by implementing your own custom tag handlers. Simply implement the `TagHandler` interface and register your handler with the `HtmlToOpenXMLConverter`:
 ```java
 TagHandler customTagHandler = new TagHandler() {

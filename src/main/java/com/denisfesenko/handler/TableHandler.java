@@ -13,6 +13,7 @@ import org.docx4j.wml.TblWidth;
 import org.docx4j.wml.Tc;
 import org.docx4j.wml.Tr;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
 
@@ -25,6 +26,29 @@ import java.util.List;
  * This class handles the conversion of HTML tables to WordprocessingMLPackage format.
  */
 public class TableHandler implements TagHandler {
+
+    /**
+     * Reserved implementation tag for inherited cell styles; not a custom-handler extension point.
+     */
+    public static final String INHERITED_STYLE_TAG = "html2openxml-inherited-style";
+
+    private final boolean strictValidation;
+
+    /**
+     * Creates a standalone handler with the historical strict validation behavior.
+     */
+    public TableHandler() {
+        this(true);
+    }
+
+    /**
+     * Creates a handler with optional strict attribute validation.
+     *
+     * @param strictValidation whether unknown merge values cause errors
+     */
+    public TableHandler(boolean strictValidation) {
+        this.strictValidation = strictValidation;
+    }
 
     private HtmlToOpenXMLConverter converter;
 
@@ -107,11 +131,45 @@ public class TableHandler implements TagHandler {
             Elements tds = trs.get(i).select("> td, > th");
             cellMatrix[i] = new CellWrapper[tds.size()];
             for (int j = 0; j < tds.size(); j++) {
-                cellMatrix[i][j] = new CellWrapper().setContent(tds.get(j).html()).setStyle(tds.get(j).attr(Constants.STYLE))
+                cellMatrix[i][j] = new CellWrapper().setContent(cellContentWithInheritedStyles(tds.get(j))).setStyle(tds.get(j).attr(Constants.STYLE))
                         .setMerge(tds.get(j).attr("merge")).setColspan(parseColspan(tds.get(j).attr("colspan")));
+                String merge = cellMatrix[i][j].getMerge();
+                if (!strictValidation && !"restart".equals(merge) && !"continue".equals(merge)) {
+                    cellMatrix[i][j].setMerge("");
+                }
             }
         }
         return cellMatrix;
+    }
+
+    private static String cellContentWithInheritedStyles(Element cell) {
+        List<String> inheritedStyles = new ArrayList<>();
+        // Cells are converted as separate fragments. Keep inherited text declarations in
+        // transparent wrappers without re-running outer table or custom tag handlers.
+        for (Node source = cell; source != null; source = source.parentNode()) {
+            StringBuilder style = new StringBuilder();
+            for (String property : List.of("color", "font-size", "font-weight", "font-style")) {
+                String value = ConverterUtils.getStyleProperty(source.attr("style"), property);
+                if (value != null) style.append(property).append(':').append(value).append(';');
+            }
+            if (source instanceof Element && (((Element) source).isBlock() || INHERITED_STYLE_TAG.equals(source.nodeName()))) {
+                String alignment = ConverterUtils.getStyleProperty(source.attr("style"), "text-align");
+                if (alignment != null) style.append("text-align:").append(alignment).append(';');
+            }
+            if (style.length() > 0) {
+                inheritedStyles.add(style.toString());
+            }
+        }
+        if (inheritedStyles.isEmpty()) return cell.html();
+        Document fragment = Document.createShell("");
+        fragment.outputSettings().prettyPrint(false);
+        Element content = fragment.body().appendElement(INHERITED_STYLE_TAG).html(cell.html());
+        for (String style : inheritedStyles) {
+            Element wrapper = fragment.body().appendElement(INHERITED_STYLE_TAG).attr("style", style);
+            wrapper.appendChild(content);
+            content = wrapper;
+        }
+        return content.outerHtml();
     }
 
     private static BigInteger parseColspan(String value) {

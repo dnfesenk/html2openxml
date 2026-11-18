@@ -9,15 +9,35 @@ import org.apache.commons.lang3.StringUtils;
 import java.math.BigInteger;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.Jc;
+import org.docx4j.wml.JcEnumeration;
 import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.PPr;
 import org.docx4j.wml.PPrBase;
 import org.jsoup.nodes.Node;
+import org.jsoup.nodes.Element;
 
 /**
  * This class handles the conversion of HTML paragraphs to WordprocessingMLPackage format.
  */
 public class ParagraphHandler implements TagHandler {
+
+    private final boolean strictValidation;
+
+    /**
+     * Creates a standalone handler with the historical strict validation behavior.
+     */
+    public ParagraphHandler() {
+        this(true);
+    }
+
+    /**
+     * Creates a handler with optional strict attribute validation.
+     *
+     * @param strictValidation whether unknown alignment values cause errors
+     */
+    public ParagraphHandler(boolean strictValidation) {
+        this.strictValidation = strictValidation;
+    }
 
     /**
      * Converts the paragraph node to a WordprocessingMLPackage instance.
@@ -30,13 +50,22 @@ public class ParagraphHandler implements TagHandler {
         String style = StringUtils.isNotBlank(node.attr(Constants.STYLE)) ? node.attr(Constants.STYLE) : null;
         String indent = ConverterUtils.getStyleMeasurement(style, "text-indent", "px");
         String align = StringUtils.isNotBlank(node.attr("align")) ? node.attr("align") : null;
+        JcEnumeration alignment = JcEnumMapper.map(align, strictValidation);
+        JcEnumeration cssAlignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(style, "text-align"), false);
+        if (cssAlignment != null) alignment = cssAlignment;
+        for (Node ancestor = node.parentNode(); alignment == null && ancestor != null; ancestor = ancestor.parentNode()) {
+            if (ancestor instanceof Element && (((Element) ancestor).isBlock()
+                    || TableHandler.INHERITED_STYLE_TAG.equals(ancestor.nodeName()))) {
+                alignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(ancestor.attr("style"), "text-align"), false);
+            }
+        }
         PPr pPr = null;
-        if (align != null || indent != null) {
+        if (alignment != null || indent != null) {
             ObjectFactory objectFactory = RunUtils.getObjectFactory();
             pPr = objectFactory.createPPr();
-            if (align != null) {
+            if (alignment != null) {
                 Jc jc = objectFactory.createJc();
-                jc.setVal(JcEnumMapper.map(align));
+                jc.setVal(alignment);
                 pPr.setJc(jc);
             }
             BigInteger indentDxa = ConverterUtils.scaleDecimal(indent, "15");

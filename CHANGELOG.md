@@ -1,5 +1,63 @@
 # Changelog
 
+## 2.1.0 — Unreleased
+
+### Added
+
+- GitHub Actions CI for Java 11/17/25 runtime coverage. Every matrix entry runs Maven verify;
+  the Java 11 entry builds on JDK 17 with `-DskipTests`, then uses real JDK 11 for the README smoke.
+  Full JUnit suites run on JDK 17 and 25 without a duplicate run in the Java 11 job.
+  Smoke checks compile the actual Usage example with `--release 11`, run the packaged library,
+  validate the DOCX output and check the library's Java 11 bytecode. Failed jobs retain test reports.
+
+- Basic inline `color`, `font-size` (`px`/`pt`), `font-weight` (`normal`, `bold`, 100–900),
+  `font-style` (`normal`, `italic`, `oblique`) and paragraph `text-align`, including implicit
+  paragraphs for bare text in blocks and table cells.
+- Inherited text styles survive cell fragment conversion, including nested tables. Inner styles
+  override outer styles and restore correctly after closing tags. CSS on an element takes precedence
+  over that element's legacy font attributes and bold/italic tags; `normal` explicitly clears emphasis.
+- Unsupported CSS values are ignored in either validation mode. Stylesheet selectors, `!important`,
+  relative font sizes/weights and general browser layout remain unsupported.
+
+### Changed
+
+- Unsupported image sources without alt text no longer leave speculative empty paragraphs or
+  apply their block alignment to existing content. Successful images and nonempty alt fallbacks
+  retain block boundaries and inherited alignment.
+
+- Inherited cell-style wrappers use the reserved `html2openxml-inherited-style` tag, so adding
+  CSS to a table does not invoke a user's `div` handler. Registering the reserved tag is rejected.
+- Initialize implicit paragraph alignment even after content has been added, without replacing
+  an existing justification. Images and line breaks also initialize inherited alignment, including
+  image-only cells, image-before-text cells and leading breaks.
+
+- `TagHandlerFactory.createTagHandlerMap()` now returns lenient built-in handlers by default;
+  use `createTagHandlerMap(true)` for strict alignment/merge validation.
+- Cap CSS and legacy font sizes at 3276 half-points (1638pt).
+- Separate implicit paragraphs at block boundaries and inherit the nearest block alignment,
+  preventing alignment from leaking across adjacent or nested blocks.
+
+- Default converters, including the existing map-only constructor, now ignore unknown paragraph
+  `align` and cell `merge` values. Text, other formatting and remaining document content are retained.
+- Add `HtmlToOpenXMLConverter(boolean strictValidation)` and
+  `HtmlToOpenXMLConverter(Map<String, TagHandler>, boolean strictValidation)` to opt into the
+  2.0.x behavior: unknown alignment and merge values raise `IllegalArgumentException`.
+- The chosen mode applies to built-in paragraph and table handlers, including nested table cells.
+  Standalone handler constructors retain their historical strict behavior; boolean overloads allow
+  explicitly configuring replacement handlers.
+
+### Compatibility notes
+
+- **Block layout changes even without CSS:** `<div>a</div><div>b</div>` produced one paragraph
+  in 2.0.x and produces two paragraphs in 2.1. The same block-boundary handling applies to `li`.
+  Inline content such as `x <b>y</b> z` remains in one paragraph.
+
+- **Behavior change:** callers relying on exceptions for unknown `align` or `merge` values must
+  use `new HtmlToOpenXMLConverter(true)` or the map-plus-boolean constructor with `true`.
+- This is limited attribute validation, not a full HTML/CSS validator. Image checks and resource
+  limits still apply; custom-handler and document-operation failures are not swallowed.
+- 2.1.0 is not published. Installation examples and the public demo remain on 2.0.1.
+
 ## 2.0.1 — 2026-11-18
 
 ### Fixes
