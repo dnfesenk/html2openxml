@@ -1,7 +1,11 @@
 package com.denisfesenko.converter.handler;
 
 import com.denisfesenko.converter.HtmlToOpenXMLConverter;
+import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.handler.TableHandler;
+import com.denisfesenko.util.RunUtils;
+import org.docx4j.XmlUtils;
+import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.STBorder;
 import org.docx4j.wml.Tbl;
@@ -9,10 +13,12 @@ import org.docx4j.wml.Tc;
 import org.docx4j.wml.Tr;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Node;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -30,6 +36,36 @@ class TableHandlerTest {
         HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter();
         wordMLPackage = WordprocessingMLPackage.createPackage();
         tableHandler.addConverter(converter);
+    }
+
+    @Test
+    void sharedHandlerKeepsTheOuterConverterDuringReentrantConversion() throws Exception {
+        TableHandler shared = new TableHandler(false);
+        HtmlToOpenXMLConverter inner = new HtmlToOpenXMLConverter(Map.of("table", shared));
+        TagHandler mark = new TagHandler() {
+            @Override
+            public void handleTag(Node node, WordprocessingMLPackage target) {
+                try {
+                    inner.convert("<table><tr><td>inner</td></tr></table>");
+                } catch (InvalidFormatException e) {
+                    throw new AssertionError("Inner table conversion failed", e);
+                }
+                RunUtils.getCurrentRPr(target).setCaps(RunUtils.createBooleanDefaultTrue());
+            }
+
+            @Override
+            public boolean isRepeatable() {
+                return true;
+            }
+        };
+        HtmlToOpenXMLConverter outer = new HtmlToOpenXMLConverter(Map.of("table", shared, "mark", mark));
+        var document = outer.convert(
+                "<table><tr><td><mark>one</mark></td><td><mark>two</mark></td></tr></table>");
+        var table = (Tbl) document.getMainDocumentPart().getContent().get(0);
+        var row = (Tr) table.getContent().get(0);
+        assertEquals(2, row.getContent().size());
+        String xml = XmlUtils.marshaltoString(document.getMainDocumentPart().getJaxbElement(), true, false);
+        assertEquals(2, xml.split("<w:caps").length - 1);
     }
 
     @Test

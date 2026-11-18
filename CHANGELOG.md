@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Converters can share a `TableHandler` without overwriting the converter used for table cells.
+
+### Compatibility notes
+
+- `HtmlToOpenXMLConverter` now dispatches to the three-argument `TableHandler.handleTag`
+  overload. Subclasses registered as custom table handlers must override that overload
+  for their customization to run during conversion. Direct calls to the two-argument
+  overload still use the converter configured with `addConverter`.
+
 ## 2.1.0 — 2026-11-18
 
 ### Added

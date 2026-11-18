@@ -21,6 +21,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * This class handles the conversion of HTML tables to WordprocessingMLPackage format.
@@ -53,8 +54,8 @@ public class TableHandler implements TagHandler {
     private volatile HtmlToOpenXMLConverter standaloneConverter;
 
     /**
-     * This method is called to process the input node and convert it to the corresponding
-     * WordprocessingMLPackage format.
+     * Converts a table directly using the converter configured with {@link #addConverter}.
+     * {@link HtmlToOpenXMLConverter} dispatches to the three-argument overload.
      *
      * @param node          The input HTML node to be processed.
      * @param wordMLPackage The WordprocessingMLPackage instance where the converted content
@@ -67,6 +68,12 @@ public class TableHandler implements TagHandler {
 
     /**
      * Converts a table using the converter associated with this invocation.
+     * Subclasses registered as custom table handlers should override this overload to
+     * customize dispatch from {@link HtmlToOpenXMLConverter}.
+     *
+     * @param node the HTML table node
+     * @param wordMLPackage the target document
+     * @param converter the converter to use for table cell content
      */
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
         Element rootNode = (Element) node;
@@ -203,6 +210,7 @@ public class TableHandler implements TagHandler {
                 row.getContent().subList(startIndex, row.getContent().size()).clear();
             }
         }
+        Objects.requireNonNull(converter, "Call addConverter or pass a converter to handleTag");
         List<Object> tempContent = new ArrayList<>(wordMLPackage.getMainDocumentPart().getContent());
         wordMLPackage.getMainDocumentPart().getContent().clear();
         try {
