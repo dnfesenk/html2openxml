@@ -34,15 +34,15 @@ Add the following dependency to your `pom.xml`:
 <dependency>
   <groupId>com.denisfesenko</groupId>
   <artifactId>html2openxml</artifactId>
-  <version>2.0.1</version>
+  <version>2.1.0</version>
 </dependency>
 ```
 Or if you're using Gradle, add this to your `build.gradle`:
 ```groovy
-implementation 'com.denisfesenko:html2openxml:2.0.1'
+implementation 'com.denisfesenko:html2openxml:2.1.0'
 ```
 
-Version 2.0.1 is published in Maven Central. See [CHANGELOG.md](CHANGELOG.md) for fixes
+Version 2.1.0 is published in Maven Central. See [CHANGELOG.md](CHANGELOG.md) for fixes
 and compatibility notes.
 
 ## Continuous Integration
@@ -103,7 +103,7 @@ public class Main {
 
 ## Inline CSS
 
-**Since 2.1.0 (currently in development)**, inline text styles can be used directly, including
+**Since 2.1.0**, inline text styles can be used directly, including
 markup commonly produced by rich text editors:
 
 ```html
@@ -144,11 +144,11 @@ inherited values, in both validation modes. This is a limited parser: external s
 `!important`, relative font sizes, font-size keywords and relative weights (`bolder`/`lighter`) are
 not supported. Pixel/point sizes are rounded to Word half-points and capped at 3276 half-points
 (1638pt), including legacy `<font size>` values. In 2.0.x use `<font color size>`,
-`<b>`, `<i>` and `<p align>` instead; the published demo remains on 2.0.1 until the 2.1.0 release.
+`<b>`, `<i>` and `<p align>` instead. The demo supports the formatting described here.
 
 ## Attribute Validation
 
-**Since 2.1.0 (currently in development)**, the default converter ignores unknown paragraph
+**Since 2.1.0**, the default converter ignores unknown paragraph
 `align` and cell `merge` values while preserving their text and other supported formatting:
 
 ```java

@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.0 — Unreleased
+## 2.1.0 — 2026-11-18
 
 ### Added
 
@@ -56,7 +56,7 @@
   use `new HtmlToOpenXMLConverter(true)` or the map-plus-boolean constructor with `true`.
 - This is limited attribute validation, not a full HTML/CSS validator. Image checks and resource
   limits still apply; custom-handler and document-operation failures are not swallowed.
-- 2.1.0 is not published. Installation examples and the public demo remain on 2.0.1.
+- 2.1.0 is published in Maven Central. Upgrade the demo dependency and preview together.
 
 ## 2.0.1 — 2026-11-18
 
