@@ -6,6 +6,7 @@ import com.denisfesenko.handler.PlainTextHandler;
 import com.denisfesenko.handler.ParagraphHandler;
 import com.denisfesenko.handler.BoldHandler;
 import com.denisfesenko.handler.ImageHandler;
+import com.denisfesenko.handler.HeadingHandler;
 import com.denisfesenko.handler.BreakHandler;
 import com.denisfesenko.handler.ItalicHandler;
 import com.denisfesenko.handler.FontHandler;
@@ -224,6 +225,12 @@ public class HtmlToOpenXMLConverter {
                         handleImage(node, tagHandler);
                         return FilterResult.CONTINUE;
                     }
+                    if (tagHandler instanceof HeadingHandler) {
+                        tagHandler.handleTag(node, wordMLPackage);
+                        paragraphEnded = false;
+                        lastInlineBlock = node;
+                        return FilterResult.CONTINUE;
+                    }
                     if (paragraphEnded && !(tagHandler instanceof TableHandler) && !node.nodeName().equals("p")
                             && !tagHandler.isRepeatable()) {
                         RunUtils.createParagraph(wordMLPackage, null);
@@ -288,6 +295,7 @@ public class HtmlToOpenXMLConverter {
 
             @Override
             public FilterResult tail(Node node, int depth) {
+                if (tagHandlerMap.get(node.nodeName()) instanceof HeadingHandler) paragraphEnded = true;
                 activeTags.remove(node);
                 if (isBuiltInListItem(node)) {
                     paragraphEnded = true;
