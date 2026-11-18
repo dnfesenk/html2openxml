@@ -217,7 +217,7 @@ public class HtmlToOpenXMLConverter {
                         }
                         tagHandler.handleTag(node, wordMLPackage);
                     } else if (tagHandler instanceof TableHandler) {
-                        ((TableHandler) tagHandler).addConverter(HtmlToOpenXMLConverter.this).handleTag(node, wordMLPackage);
+                        ((TableHandler) tagHandler).handleTag(node, wordMLPackage, HtmlToOpenXMLConverter.this);
                         return FilterResult.SKIP_CHILDREN;
                     } else if (tagHandler.isRepeatable()) {
                         activeTags.add(node);
