@@ -115,6 +115,12 @@ public class HtmlToOpenXMLConverter {
         return wordMLPackage;
     }
 
+    private static P lastParagraph(List<Object> content) {
+        if (content == null || content.isEmpty()) return null;
+        Object last = content.get(content.size() - 1);
+        return last instanceof P ? (P) last : null;
+    }
+
     /**
      * Traverses the HTML document and processes each node with the appropriate tag handlers.
      *
@@ -126,11 +132,45 @@ public class HtmlToOpenXMLConverter {
         NodeTraversor.filter(new NodeFilter() {
             private boolean paragraphEnded;
             private Node lastInlineBlock;
+
+            private void handleImage(Node node, TagHandler handler) {
+                List<Object> content = wordMLPackage.getMainDocumentPart() == null ? null
+                        : wordMLPackage.getMainDocumentPart().getContent();
+                int previousDocumentSize = content == null ? 0 : content.size();
+                P previousParagraph = lastParagraph(content);
+                int previousParagraphSize = previousParagraph == null ? 0 : previousParagraph.getContent().size();
+                Node block = InlineCss.closestBlock(node);
+                boolean newBlock = lastInlineBlock != null && block != lastInlineBlock
+                        && (block == null || !block.nodeName().equals("p"));
+                if (paragraphEnded || (newBlock && previousParagraphSize > 0)) {
+                    RunUtils.createParagraph(wordMLPackage, null);
+                }
+                // Keep validation/embedding exceptions unchanged. Only commit paragraph
+                // state and alignment if the handler actually produced image or alt content.
+                handler.handleTag(node, wordMLPackage);
+                content = wordMLPackage.getMainDocumentPart().getContent();
+                P paragraph = lastParagraph(content);
+                boolean added = paragraph != null && (paragraph == previousParagraph
+                        ? paragraph.getContent().size() > previousParagraphSize : !paragraph.getContent().isEmpty());
+                if (added) {
+                    InlineCss.alignImplicitParagraph(node, paragraph);
+                    lastInlineBlock = block;
+                    paragraphEnded = false;
+                } else if (content.size() > previousDocumentSize && paragraph != null && paragraph.getContent().isEmpty()) {
+                    // Discard the speculative block boundary for a source without an alt fallback.
+                    content.remove(content.size() - 1);
+                }
+            }
+
             @Override
             public FilterResult head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (tagHandler != null) {
                     if (paragraphEnded && node instanceof TextNode && ((TextNode) node).isBlank()) {
+                        return FilterResult.CONTINUE;
+                    }
+                    if (tagHandler instanceof ImageHandler && !tagHandler.isRepeatable()) {
+                        handleImage(node, tagHandler);
                         return FilterResult.CONTINUE;
                     }
                     if (paragraphEnded && !(tagHandler instanceof TableHandler) && !node.nodeName().equals("p")
@@ -139,21 +179,16 @@ public class HtmlToOpenXMLConverter {
                         paragraphEnded = false;
                     }
                     if (node.nodeName().equals("p")) paragraphEnded = false;
-                    if (tagHandler instanceof PlainTextHandler || tagHandler instanceof ImageHandler
-                            || tagHandler instanceof BreakHandler) {
+                    if (tagHandler instanceof PlainTextHandler || tagHandler instanceof BreakHandler) {
                         Node block = InlineCss.closestBlock(node);
-                        // Images validate and embed before alignment is initialized, preserving
-                        // their document failures and avoiding paragraphs for empty fallbacks.
-                        if (!(tagHandler instanceof ImageHandler) || lastInlineBlock != null) {
-                            var paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
-                            if (block != lastInlineBlock && lastInlineBlock != null && !paragraph.getContent().isEmpty()
-                                    && (block == null || !block.nodeName().equals("p"))) {
-                                if (node instanceof TextNode && ((TextNode) node).isBlank()) return FilterResult.CONTINUE;
-                                RunUtils.createParagraph(wordMLPackage, null);
-                                paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
-                            }
-                            if (!(tagHandler instanceof ImageHandler)) InlineCss.alignImplicitParagraph(node, paragraph);
+                        var paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                        if (block != lastInlineBlock && lastInlineBlock != null && !paragraph.getContent().isEmpty()
+                                && (block == null || !block.nodeName().equals("p"))) {
+                            if (node instanceof TextNode && ((TextNode) node).isBlank()) return FilterResult.CONTINUE;
+                            RunUtils.createParagraph(wordMLPackage, null);
+                            paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
                         }
+                        InlineCss.alignImplicitParagraph(node, paragraph);
                         lastInlineBlock = block;
                     }
                     if (tagHandler instanceof PlainTextHandler) {
@@ -188,12 +223,6 @@ public class HtmlToOpenXMLConverter {
                         activeTags.add(node);
                     } else {
                         tagHandler.handleTag(node, wordMLPackage);
-                        if (tagHandler instanceof ImageHandler) {
-                            List<Object> content = wordMLPackage.getMainDocumentPart().getContent();
-                            if (!content.isEmpty() && content.get(content.size() - 1) instanceof P) {
-                                InlineCss.alignImplicitParagraph(node, (P) content.get(content.size() - 1));
-                            }
-                        }
                     }
                 }
                 return FilterResult.CONTINUE;

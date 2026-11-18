@@ -112,6 +112,65 @@ class ImplicitParagraphContentTest {
     }
 
     @Test
+    void ignoredImageAfterBlockDoesNotLeaveAnEmptyParagraph() throws Exception {
+        var content = new HtmlToOpenXMLConverter().convert(
+                "<div>a</div><div><img src='https://example.invalid/missing.png'></div>")
+                .getMainDocumentPart().getContent();
+        assertEquals(1, content.size());
+        assertEquals("a", org.docx4j.TextUtils.getText(content.get(0)));
+    }
+
+    @Test
+    void ignoredImageDoesNotRealignExistingHorizontalRule() throws Exception {
+        var content = new HtmlToOpenXMLConverter().convert(
+                "<hr><div style='text-align:center'><img src='https://example.invalid/missing.png'></div>")
+                .getMainDocumentPart().getContent();
+        assertEquals(1, content.size());
+        P p = (P) content.get(0);
+        assertNull(p.getPPr());
+        assertEquals(1, p.getContent().size());
+        assertTrue(((R) p.getContent().get(0)).getContent().get(0) instanceof Pict);
+    }
+
+    @Test
+    void ignoredImageDoesNotConsumeTheBoundaryOrAlignmentOfFollowingText() throws Exception {
+        var content = new HtmlToOpenXMLConverter().convert("<div style='text-align:right'>a</div>"
+                + "<div style='text-align:center'><img src='https://example.invalid/missing.png'></div>"
+                + "<div>b</div>").getMainDocumentPart().getContent();
+        assertEquals(2, content.size());
+        assertEquals("a", org.docx4j.TextUtils.getText(content.get(0)));
+        assertEquals(JcEnumeration.RIGHT, ((P) content.get(0)).getPPr().getJc().getVal());
+        assertEquals("b", org.docx4j.TextUtils.getText(content.get(1)));
+        assertNull(((P) content.get(1)).getPPr());
+    }
+
+    @Test
+    void imageAltFallbackKeepsItsNewParagraphAndAlignment() throws Exception {
+        var content = new HtmlToOpenXMLConverter().convert("<div>a</div><div style='text-align:center'>"
+                + "<img src='https://example.invalid/missing.png' alt='caption'></div>")
+                .getMainDocumentPart().getContent();
+        assertEquals(2, content.size());
+        assertEquals("a", org.docx4j.TextUtils.getText(content.get(0)));
+        P p = (P) content.get(1);
+        assertEquals("caption", org.docx4j.TextUtils.getText(p));
+        assertEquals(JcEnumeration.CENTER, p.getPPr().getJc().getVal());
+    }
+
+    @Test
+    void embeddedImageKeepsItsNewBlockAndFollowingCaption() throws Exception {
+        var content = new HtmlToOpenXMLConverter().convert("<div>a</div><div style='text-align:center'>"
+                + image() + "caption</div>").getMainDocumentPart().getContent();
+        assertEquals(2, content.size());
+        P first = (P) content.get(0);
+        P second = (P) content.get(1);
+        assertEquals("a", org.docx4j.TextUtils.getText(first));
+        assertNull(first.getPPr());
+        assertEquals(JcEnumeration.CENTER, second.getPPr().getJc().getVal());
+        assertTrue(((R) second.getContent().get(0)).getContent().get(0) instanceof Drawing);
+        assertEquals("caption", org.docx4j.TextUtils.getText(second));
+    }
+
+    @Test
     void internalStyleTagCannotBeRegisteredAsACustomHandler() {
         TagHandler handler = new com.denisfesenko.handler.BoldHandler();
         assertThrows(IllegalArgumentException.class,

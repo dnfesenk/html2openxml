@@ -21,6 +21,10 @@
 
 ### Changed
 
+- Unsupported image sources without alt text no longer leave speculative empty paragraphs or
+  apply their block alignment to existing content. Successful images and nonempty alt fallbacks
+  retain block boundaries and inherited alignment.
+
 - Inherited cell-style wrappers use the reserved `html2openxml-inherited-style` tag, so adding
   CSS to a table does not invoke a user's `div` handler. Registering the reserved tag is rejected.
 - Initialize implicit paragraph alignment even after content has been added, without replacing
