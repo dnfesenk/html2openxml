@@ -149,6 +149,64 @@ class InlineCssTest {
         }
     }
 
+    @Test
+    void bareCellTextInheritsAlignmentWithoutAnExplicitParagraph() throws Exception {
+        var document = converter.convert("<table style='text-align:right'><tr>"
+                + "<td style='text-align:center'>bare</td><td>inherited</td>"
+                + "<td style='text-align:center'><p>explicit</p></td></tr></table>");
+        Tbl table = (Tbl) document.getMainDocumentPart().getContent().get(0);
+        Tr row = (Tr) table.getContent().get(0);
+        for (int i = 0; i < 3; i++) {
+            P p = (P) ((Tc) row.getContent().get(i)).getContent().get(0);
+            assertEquals(i == 1 ? JcEnumeration.RIGHT : JcEnumeration.CENTER, p.getPPr().getJc().getVal());
+        }
+        var bytes = new java.io.ByteArrayOutputStream();
+        document.save(bytes);
+        try (var reopened = new org.apache.poi.xwpf.usermodel.XWPFDocument(
+                new java.io.ByteArrayInputStream(bytes.toByteArray()))) {
+            var p = reopened.getTables().get(0).getRow(0).getCell(0).getParagraphs().get(0);
+            assertEquals("bare", p.getText());
+            assertEquals(org.apache.poi.xwpf.usermodel.ParagraphAlignment.CENTER, p.getAlignment());
+        }
+    }
+
+    @Test
+    void implicitParagraphsFollowBlockBoundariesWithoutAlignmentLeaking() throws Exception {
+        var content = converter.convert("<div style='text-align:center'>A<span style='text-align:right'>B</span></div> \n"
+                + "<div style='text-align:right'>C</div> \n<div>D</div><p>E</p>")
+                .getMainDocumentPart().getContent();
+        assertEquals(4, content.size());
+        assertEquals("AB", org.docx4j.TextUtils.getText(content.get(0)));
+        assertEquals(JcEnumeration.CENTER, ((P) content.get(0)).getPPr().getJc().getVal());
+        assertEquals(JcEnumeration.RIGHT, ((P) content.get(1)).getPPr().getJc().getVal());
+        assertNull(((P) content.get(2)).getPPr());
+        assertNull(((P) content.get(3)).getPPr());
+    }
+
+    @Test
+    void nestedImplicitBlocksOverrideAndRestoreAlignment() throws Exception {
+        var content = converter.convert("<div style='text-align:center'>A<div style='text-align:right'>B</div>C</div>")
+                .getMainDocumentPart().getContent();
+        assertEquals(3, content.size());
+        assertEquals(JcEnumeration.CENTER, ((P) content.get(0)).getPPr().getJc().getVal());
+        assertEquals(JcEnumeration.RIGHT, ((P) content.get(1)).getPPr().getJc().getVal());
+        assertEquals(JcEnumeration.CENTER, ((P) content.get(2)).getPPr().getJc().getVal());
+        assertEquals("A", org.docx4j.TextUtils.getText(content.get(0)));
+        assertEquals("B", org.docx4j.TextUtils.getText(content.get(1)));
+        assertEquals("C", org.docx4j.TextUtils.getText(content.get(2)));
+    }
+
+    @Test
+    void cssAndLegacyFontSizesAreCappedAtWordsMaximum() throws Exception {
+        for (String html : new String[]{"<span style='font-size:100000px'>A</span>",
+                "<span style='font-size:100000pt'>A</span>", "<font size='100000px'>A</font>",
+                "<font size='100000'>A</font>", "<span style='font-size:1638pt'>A</span>"}) {
+            RPr style = run(paragraph(html), 0);
+            assertEquals(BigInteger.valueOf(3276), style.getSz().getVal(), html);
+            assertEquals(BigInteger.valueOf(3276), style.getSzCs().getVal(), html);
+        }
+    }
+
     private P paragraph(String html) throws Exception {
         return (P) converter.convert(html).getMainDocumentPart().getContent().get(0);
     }

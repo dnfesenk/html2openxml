@@ -23,14 +23,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # JUnit 6 requires Java 17. Build and run its full suite on 17, then
-          # compile and run the README against the packaged library on real JDK 11.
+          # JUnit 6 requires Java 17. Build the Java 11 artifact on 17 without
+          # repeating the suite; the other entries run all tests on 17 and 25.
           - runtime: '11'
             build: '17'
+            skip_tests: true
           - runtime: '17'
             build: '17'
+            skip_tests: false
           - runtime: '25'
             build: '25'
+            skip_tests: false
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,7 +47,7 @@ jobs:
 
       - name: Verify and resolve runtime classpath
         run: >-
-          mvn --batch-mode --no-transfer-progress clean verify
+          mvn --batch-mode --no-transfer-progress clean verify -DskipTests=${{ matrix.skip_tests }}
           org.apache.maven.plugins:maven-dependency-plugin:3.7.0:build-classpath
           -DincludeScope=runtime -Dmdep.outputFile=target/runtime-classpath.txt
 

@@ -53,15 +53,16 @@ requests, pushes to `main`, release tags and manual dispatch. Every matrix entry
 example with `javac --release 11`, runs it against the packaged JAR and checks its DOCX output.
 The smoke check also verifies every library class has a bytecode major version no greater than 55.
 
-| Runtime smoke check | Build and full JUnit suite |
+| Runtime smoke check | Build and JUnit suite |
 | --- | --- |
-| Java 11 | JDK 17 |
+| Java 11 | JDK 17, `mvn verify -DskipTests` |
 | Java 17 | JDK 17 |
 | Java 25 | JDK 25 |
 
-[JUnit 6 requires Java 17+](https://junit.org/), so the Java 11 matrix entry builds and runs the
-full test suite on JDK 17 before switching to an actual JDK 11 for compilation and execution of
-the README example. No JUnit tests are skipped. CI uses no release profile or publication secrets.
+[JUnit 6 requires Java 17+](https://junit.org/), so the Java 11 matrix entry builds on JDK 17
+with `-DskipTests` before switching to an actual JDK 11 for compilation and execution of the
+README example. The Java 17 and Java 25 entries each run the full suite; it is not repeated in
+the Java 11 job. CI uses no release profile or publication secrets.
 
 Run the same smoke check locally with the desired runtime in `JAVA_HOME`:
 
@@ -117,7 +118,7 @@ markup commonly produced by rich text editors:
 | `font-size` | Positive decimal `px` or `pt` values; 16px = 12pt |
 | `font-weight` | `normal`, `bold`, and 100–900 in steps of 100; 600 and above become bold |
 | `font-style` | `normal`, `italic`, `oblique` (rendered as italic) |
-| `text-align` | `left`, `right`, `center`, `justify` on paragraphs |
+| `text-align` | `left`, `right`, `center`, `justify` on explicit and implicit paragraphs |
 
 Text properties inherit from ancestors, including table and cell styles. An inner declaration
 can override an outer one; `normal` clears inherited bold or italic. Semantic tags and CSS are
@@ -125,13 +126,23 @@ applied from outer elements to inner elements, with CSS taking priority over the
 legacy attributes or semantic formatting. For example, `<b style="font-weight:normal">` is not bold,
 while a nested `<b>` inside an element with `font-weight:normal` is bold. Paragraph alignment also
 inherits from styled block ancestors; an explicit paragraph `align` overrides inherited alignment,
-and a valid `text-align` on that paragraph overrides `align`.
+and a valid `text-align` on that paragraph overrides `align`. Bare text in block elements and
+cells also inherits alignment, without requiring a `<p>` wrapper:
+
+```html
+<td style="text-align:center">Centered cell text</td>
+<div style="text-align:right">Right-aligned text</div>
+```
+
+Text in separate block elements starts separate paragraphs, so alignment does not leak between
+adjacent or nested blocks. A `text-align` on an inline `<span>` does not realign the paragraph.
 
 Declarations accept property/value case and surrounding whitespace, and do not require a trailing
 semicolon; the last declaration of each property is used. Unsupported values are ignored, preserving
 inherited values, in both validation modes. This is a limited parser: external stylesheets, selectors,
 `!important`, relative font sizes, font-size keywords and relative weights (`bolder`/`lighter`) are
-not supported. Pixel/point sizes are rounded to Word half-points. In 2.0.x use `<font color size>`,
+not supported. Pixel/point sizes are rounded to Word half-points and capped at 3276 half-points
+(1638pt), including legacy `<font size>` values. In 2.0.x use `<font color size>`,
 `<b>`, `<i>` and `<p align>` instead; the published demo remains on 2.0.1 until the 2.1.0 release.
 
 ## Attribute Validation

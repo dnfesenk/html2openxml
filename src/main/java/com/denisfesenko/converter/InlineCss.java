@@ -2,11 +2,16 @@ package com.denisfesenko.converter;
 
 import com.denisfesenko.util.ConverterUtils;
 import com.denisfesenko.util.RunUtils;
+import com.denisfesenko.util.JcEnumMapper;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.Color;
 import org.docx4j.wml.HpsMeasure;
 import org.docx4j.wml.RPr;
+import org.docx4j.wml.P;
+import org.docx4j.wml.Jc;
+import org.docx4j.wml.JcEnumeration;
+import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 
 import java.math.BigInteger;
@@ -33,7 +38,7 @@ final class InlineCss {
         }
         if (size != null && size.signum() > 0) {
             HpsMeasure value = RunUtils.getObjectFactory().createHpsMeasure();
-            value.setVal(size);
+            value.setVal(size.min(BigInteger.valueOf(3276)));
             properties.setSz(value);
             properties.setSzCs(value);
         }
@@ -44,6 +49,32 @@ final class InlineCss {
         if (italic != null) {
             properties.setI(onOff(italic));
             properties.setICs(onOff(italic));
+        }
+    }
+
+    static Node closestBlock(Node node) {
+        for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
+            if (ancestor instanceof Element && ((Element) ancestor).isBlock()) return ancestor;
+        }
+        return null;
+    }
+
+    static void alignImplicitParagraph(Node node, P paragraph) {
+        // Explicit paragraphs have already been configured by ParagraphHandler (or a
+        // custom replacement). Only initialize a new implicit paragraph here.
+        if (!paragraph.getContent().isEmpty()) return;
+        JcEnumeration alignment = null;
+        for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
+            if (ancestor.nodeName().equals("p")) return;
+            if (alignment == null && ancestor instanceof Element && ((Element) ancestor).isBlock()) {
+                alignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(ancestor.attr("style"), "text-align"), false);
+            }
+        }
+        if (alignment != null) {
+            if (paragraph.getPPr() == null) paragraph.setPPr(RunUtils.getObjectFactory().createPPr());
+            Jc justification = RunUtils.getObjectFactory().createJc();
+            justification.setVal(alignment);
+            paragraph.getPPr().setJc(justification);
         }
     }
 

@@ -119,6 +119,7 @@ public class HtmlToOpenXMLConverter {
         List<Node> activeTags = new ArrayList<>();
         NodeTraversor.filter(new NodeFilter() {
             private boolean paragraphEnded;
+            private Node lastTextBlock;
             @Override
             public FilterResult head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
@@ -133,7 +134,17 @@ public class HtmlToOpenXMLConverter {
                     }
                     if (node.nodeName().equals("p")) paragraphEnded = false;
                     if (tagHandler instanceof PlainTextHandler) {
-                        RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
+                        Node block = InlineCss.closestBlock(node);
+                        var paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                        if (block != lastTextBlock && lastTextBlock != null && !paragraph.getContent().isEmpty()
+                                && (block == null || !block.nodeName().equals("p"))) {
+                            if (((TextNode) node).isBlank()) return FilterResult.CONTINUE;
+                            RunUtils.createParagraph(wordMLPackage, null);
+                            paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                        }
+                        InlineCss.alignImplicitParagraph(node, paragraph);
+                        lastTextBlock = block;
+                        paragraph.getContent().add(RunUtils.getObjectFactory().createR());
                         Map<TagHandler, List<Node>> contexts = new LinkedHashMap<>();
                         activeTags.forEach(source -> contexts.computeIfAbsent(tagHandlerMap.get(source.nodeName()),
                                 handler -> new ArrayList<>()).add(source));
@@ -172,7 +183,7 @@ public class HtmlToOpenXMLConverter {
             @Override
             public FilterResult tail(Node node, int depth) {
                 activeTags.remove(node);
-                if (node.nodeName().equals("p")) paragraphEnded = true;
+                if (node.nodeName().equals("p") || node == lastTextBlock) paragraphEnded = true;
                 return FilterResult.CONTINUE;
             }
         }, document);

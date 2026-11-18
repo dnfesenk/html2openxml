@@ -28,7 +28,8 @@ public class TagHandlerFactory {
     /**
      * Creates and returns a map of supported HTML tags and their corresponding handlers.
      * The keys in the map are tag names, and the values are instances of the appropriate
-     * TagHandler subclasses for processing the tags.
+     * TagHandler subclasses for processing the tags. Unknown alignment and merge values
+     * are ignored; use {@link #createTagHandlerMap(boolean)} with true for strict validation.
      *
      * @return A map of supported HTML tags and their corresponding handlers.
      */
