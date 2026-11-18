@@ -21,6 +21,12 @@
 
 ### Changed
 
+- Inherited cell-style wrappers use the reserved `html2openxml-inherited-style` tag, so adding
+  CSS to a table does not invoke a user's `div` handler. Registering the reserved tag is rejected.
+- Initialize implicit paragraph alignment even after content has been added, without replacing
+  an existing justification. Images and line breaks also initialize inherited alignment, including
+  image-only cells, image-before-text cells and leading breaks.
+
 - `TagHandlerFactory.createTagHandlerMap()` now returns lenient built-in handlers by default;
   use `createTagHandlerMap(true)` for strict alignment/merge validation.
 - Cap CSS and legacy font sizes at 3276 half-points (1638pt).
@@ -37,6 +43,10 @@
   explicitly configuring replacement handlers.
 
 ### Compatibility notes
+
+- **Block layout changes even without CSS:** `<div>a</div><div>b</div>` produced one paragraph
+  in 2.0.x and produces two paragraphs in 2.1. The same block-boundary handling applies to `li`.
+  Inline content such as `x <b>y</b> z` remains in one paragraph.
 
 - **Behavior change:** callers relying on exceptions for unknown `align` or `merge` values must
   use `new HtmlToOpenXMLConverter(true)` or the map-plus-boolean constructor with `true`.

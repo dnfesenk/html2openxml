@@ -4,6 +4,8 @@ import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.core.TagHandlerFactory;
 import com.denisfesenko.handler.PlainTextHandler;
 import com.denisfesenko.handler.BoldHandler;
+import com.denisfesenko.handler.ImageHandler;
+import com.denisfesenko.handler.BreakHandler;
 import com.denisfesenko.handler.ItalicHandler;
 import com.denisfesenko.handler.FontHandler;
 import com.denisfesenko.handler.SpanHandler;
@@ -14,6 +16,7 @@ import com.denisfesenko.handler.TableHandler;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.wml.P;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
@@ -80,6 +83,9 @@ public class HtmlToOpenXMLConverter {
     public HtmlToOpenXMLConverter(Map<String, TagHandler> customTagHandlerMap, boolean strictValidation) {
         tagHandlerMap = new TagHandlerFactory().createTagHandlerMap(strictValidation);
         if (customTagHandlerMap != null) {
+            if (customTagHandlerMap.keySet().stream().anyMatch(TableHandler.INHERITED_STYLE_TAG::equalsIgnoreCase)) {
+                throw new IllegalArgumentException("Tag " + TableHandler.INHERITED_STYLE_TAG + " is reserved for inherited cell styles");
+            }
             tagHandlerMap.putAll(customTagHandlerMap);
         }
     }
@@ -119,7 +125,7 @@ public class HtmlToOpenXMLConverter {
         List<Node> activeTags = new ArrayList<>();
         NodeTraversor.filter(new NodeFilter() {
             private boolean paragraphEnded;
-            private Node lastTextBlock;
+            private Node lastInlineBlock;
             @Override
             public FilterResult head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
@@ -133,18 +139,25 @@ public class HtmlToOpenXMLConverter {
                         paragraphEnded = false;
                     }
                     if (node.nodeName().equals("p")) paragraphEnded = false;
-                    if (tagHandler instanceof PlainTextHandler) {
+                    if (tagHandler instanceof PlainTextHandler || tagHandler instanceof ImageHandler
+                            || tagHandler instanceof BreakHandler) {
                         Node block = InlineCss.closestBlock(node);
-                        var paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
-                        if (block != lastTextBlock && lastTextBlock != null && !paragraph.getContent().isEmpty()
-                                && (block == null || !block.nodeName().equals("p"))) {
-                            if (((TextNode) node).isBlank()) return FilterResult.CONTINUE;
-                            RunUtils.createParagraph(wordMLPackage, null);
-                            paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                        // Images validate and embed before alignment is initialized, preserving
+                        // their document failures and avoiding paragraphs for empty fallbacks.
+                        if (!(tagHandler instanceof ImageHandler) || lastInlineBlock != null) {
+                            var paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                            if (block != lastInlineBlock && lastInlineBlock != null && !paragraph.getContent().isEmpty()
+                                    && (block == null || !block.nodeName().equals("p"))) {
+                                if (node instanceof TextNode && ((TextNode) node).isBlank()) return FilterResult.CONTINUE;
+                                RunUtils.createParagraph(wordMLPackage, null);
+                                paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                            }
+                            if (!(tagHandler instanceof ImageHandler)) InlineCss.alignImplicitParagraph(node, paragraph);
                         }
-                        InlineCss.alignImplicitParagraph(node, paragraph);
-                        lastTextBlock = block;
-                        paragraph.getContent().add(RunUtils.getObjectFactory().createR());
+                        lastInlineBlock = block;
+                    }
+                    if (tagHandler instanceof PlainTextHandler) {
+                        RunUtils.getCurrentParagraph(wordMLPackage).getContent().add(RunUtils.getObjectFactory().createR());
                         Map<TagHandler, List<Node>> contexts = new LinkedHashMap<>();
                         activeTags.forEach(source -> contexts.computeIfAbsent(tagHandlerMap.get(source.nodeName()),
                                 handler -> new ArrayList<>()).add(source));
@@ -175,6 +188,12 @@ public class HtmlToOpenXMLConverter {
                         activeTags.add(node);
                     } else {
                         tagHandler.handleTag(node, wordMLPackage);
+                        if (tagHandler instanceof ImageHandler) {
+                            List<Object> content = wordMLPackage.getMainDocumentPart().getContent();
+                            if (!content.isEmpty() && content.get(content.size() - 1) instanceof P) {
+                                InlineCss.alignImplicitParagraph(node, (P) content.get(content.size() - 1));
+                            }
+                        }
                     }
                 }
                 return FilterResult.CONTINUE;
@@ -183,7 +202,7 @@ public class HtmlToOpenXMLConverter {
             @Override
             public FilterResult tail(Node node, int depth) {
                 activeTags.remove(node);
-                if (node.nodeName().equals("p") || node == lastTextBlock) paragraphEnded = true;
+                if (node.nodeName().equals("p") || node == lastInlineBlock) paragraphEnded = true;
                 return FilterResult.CONTINUE;
             }
         }, document);

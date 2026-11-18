@@ -1,6 +1,7 @@
 package com.denisfesenko.converter;
 
 import com.denisfesenko.util.ConverterUtils;
+import com.denisfesenko.handler.TableHandler;
 import com.denisfesenko.util.RunUtils;
 import com.denisfesenko.util.JcEnumMapper;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -54,19 +55,21 @@ final class InlineCss {
 
     static Node closestBlock(Node node) {
         for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
-            if (ancestor instanceof Element && ((Element) ancestor).isBlock()) return ancestor;
+            if (ancestor instanceof Element && (((Element) ancestor).isBlock()
+                    || TableHandler.INHERITED_STYLE_TAG.equals(ancestor.nodeName()))) return ancestor;
         }
         return null;
     }
 
     static void alignImplicitParagraph(Node node, P paragraph) {
         // Explicit paragraphs have already been configured by ParagraphHandler (or a
-        // custom replacement). Only initialize a new implicit paragraph here.
-        if (!paragraph.getContent().isEmpty()) return;
+        // custom replacement). Preserve any existing paragraph alignment.
+        if (paragraph.getPPr() != null && paragraph.getPPr().getJc() != null) return;
         JcEnumeration alignment = null;
         for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
             if (ancestor.nodeName().equals("p")) return;
-            if (alignment == null && ancestor instanceof Element && ((Element) ancestor).isBlock()) {
+            if (alignment == null && ancestor instanceof Element && (((Element) ancestor).isBlock()
+                    || TableHandler.INHERITED_STYLE_TAG.equals(ancestor.nodeName()))) {
                 alignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(ancestor.attr("style"), "text-align"), false);
             }
         }

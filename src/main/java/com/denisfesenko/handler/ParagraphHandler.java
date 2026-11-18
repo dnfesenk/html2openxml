@@ -54,7 +54,8 @@ public class ParagraphHandler implements TagHandler {
         JcEnumeration cssAlignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(style, "text-align"), false);
         if (cssAlignment != null) alignment = cssAlignment;
         for (Node ancestor = node.parentNode(); alignment == null && ancestor != null; ancestor = ancestor.parentNode()) {
-            if (ancestor instanceof Element && ((Element) ancestor).isBlock()) {
+            if (ancestor instanceof Element && (((Element) ancestor).isBlock()
+                    || TableHandler.INHERITED_STYLE_TAG.equals(ancestor.nodeName()))) {
                 alignment = JcEnumMapper.map(ConverterUtils.getStyleProperty(ancestor.attr("style"), "text-align"), false);
             }
         }

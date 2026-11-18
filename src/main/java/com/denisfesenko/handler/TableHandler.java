@@ -27,6 +27,11 @@ import java.util.List;
  */
 public class TableHandler implements TagHandler {
 
+    /**
+     * Reserved implementation tag for inherited cell styles; not a custom-handler extension point.
+     */
+    public static final String INHERITED_STYLE_TAG = "html2openxml-inherited-style";
+
     private final boolean strictValidation;
 
     /**
@@ -147,7 +152,7 @@ public class TableHandler implements TagHandler {
                 String value = ConverterUtils.getStyleProperty(source.attr("style"), property);
                 if (value != null) style.append(property).append(':').append(value).append(';');
             }
-            if (source instanceof Element && ((Element) source).isBlock()) {
+            if (source instanceof Element && (((Element) source).isBlock() || INHERITED_STYLE_TAG.equals(source.nodeName()))) {
                 String alignment = ConverterUtils.getStyleProperty(source.attr("style"), "text-align");
                 if (alignment != null) style.append("text-align:").append(alignment).append(';');
             }
@@ -158,9 +163,9 @@ public class TableHandler implements TagHandler {
         if (inheritedStyles.isEmpty()) return cell.html();
         Document fragment = Document.createShell("");
         fragment.outputSettings().prettyPrint(false);
-        Element content = fragment.body().appendElement("div").html(cell.html());
+        Element content = fragment.body().appendElement(INHERITED_STYLE_TAG).html(cell.html());
         for (String style : inheritedStyles) {
-            Element wrapper = fragment.body().appendElement("div").attr("style", style);
+            Element wrapper = fragment.body().appendElement(INHERITED_STYLE_TAG).attr("style", style);
             wrapper.appendChild(content);
             content = wrapper;
         }

@@ -135,7 +135,8 @@ cells also inherits alignment, without requiring a `<p>` wrapper:
 ```
 
 Text in separate block elements starts separate paragraphs, so alignment does not leak between
-adjacent or nested blocks. A `text-align` on an inline `<span>` does not realign the paragraph.
+adjacent or nested blocks. This also applies when a cell contains only an image, an image before
+text, or a leading `<br>`. A `text-align` on an inline `<span>` does not realign the paragraph.
 
 Declarations accept property/value case and surrounding whitespace, and do not require a trailing
 semicolon; the last declaration of each property is used. Unsupported values are ignored, preserving
@@ -264,6 +265,11 @@ constructor changes only the per-image limit and keeps the default document budg
 Oversized inputs raise `IllegalArgumentException`.
 
 ## Custom Tag Handlers
+
+The tag name `html2openxml-inherited-style` is reserved for internal cell-style wrappers and
+cannot be registered as a custom handler (case-insensitive). These wrappers carry inherited CSS
+without invoking user handlers for `div` or re-running handlers from outside a table.
+
 You can extend the functionality of **html2openxml** by implementing your own custom tag handlers. Simply implement the `TagHandler` interface and register your handler with the `HtmlToOpenXMLConverter`:
 ```java
 TagHandler customTagHandler = new TagHandler() {
