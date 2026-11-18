@@ -198,8 +198,7 @@ public class HtmlToOpenXMLConverter {
                 }
             }
 
-            @Override
-            public FilterResult head(Node node, int depth) {
+            private FilterResult handleNode(Node node) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (isBuiltInListItem(node)) {
                     var properties = RunUtils.getObjectFactory().createPPr();
@@ -309,6 +308,27 @@ public class HtmlToOpenXMLConverter {
                     }
                 }
                 return FilterResult.CONTINUE;
+            }
+
+            private final Hyperlinks hyperlinks = new Hyperlinks();
+
+            @Override
+            public FilterResult head(Node node, int depth) {
+                TagHandler handler = tagHandlerMap.get(node.nodeName());
+                Node anchor = !tagHandlerMap.containsKey("a") && (handler instanceof PlainTextHandler
+                        || handler instanceof BreakHandler || handler instanceof ImageHandler)
+                        ? Hyperlinks.enclosingAnchor(node) : null;
+                if (anchor == null) return handleNode(node);
+
+                var content = wordMLPackage.getMainDocumentPart().getContent();
+                P previous = lastParagraph(content);
+                int size = previous == null ? 0 : previous.getContent().size();
+                FilterResult result = handleNode(node);
+                P paragraph = lastParagraph(content);
+                if (paragraph != null) {
+                    hyperlinks.wrapContent(anchor, paragraph, paragraph == previous ? size : 0, wordMLPackage);
+                }
+                return result;
             }
 
             @Override
