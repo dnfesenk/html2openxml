@@ -13,10 +13,12 @@ import org.docx4j.wml.Text;
 import org.docx4j.wml.U;
 import org.docx4j.wml.UnderlineEnumeration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,10 +32,10 @@ class HtmlToOpenXMLConverterTest {
     private final HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter();
 
     @Test
-    void convertHtmlToDocx_createsValidDocxFileWithCorrectFormatting() {
+    void convertHtmlToDocx_createsValidDocxFileWithCorrectFormatting(@TempDir Path tempDir) {
         // Arrange
         String html = "<p>Hello, <b>World</b>! This is an <span style=\"background-color: rgb(255, 0, 0);\"><i>example</i> of <b><i>mixed</i></span> formatting</b>.</p>";
-        File outputFile = new File("output.docx");
+        File outputFile = tempDir.resolve("output.docx").toFile();
 
         // Act
         WordprocessingMLPackage wordMLPackage = null;
@@ -49,14 +51,14 @@ class HtmlToOpenXMLConverterTest {
         assertTrue(outputFile.length() > 0, "Output file is empty");
 
         // Validate content and formatting
-        try (FileInputStream fis = new FileInputStream(outputFile)) {
-            XWPFDocument doc = new XWPFDocument(fis);
+        try (FileInputStream fis = new FileInputStream(outputFile);
+             XWPFDocument doc = new XWPFDocument(fis)) {
             List<XWPFParagraph> paragraphs = doc.getParagraphs();
             assertEquals(1, paragraphs.size(), "There should be only one paragraph");
 
             XWPFParagraph paragraph = paragraphs.get(0);
             List<XWPFRun> runs = paragraph.getRuns();
-            assertEquals(8, runs.size(), "There should be seven runs");
+            assertEquals(8, runs.size(), "There should be eight runs");
 
             assertRun(runs.get(0), "Hello, ", false, false);
             assertRun(runs.get(1), "World", true, false);
