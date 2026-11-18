@@ -3,6 +3,7 @@ package com.denisfesenko.converter;
 import com.denisfesenko.core.TagHandler;
 import com.denisfesenko.core.TagHandlerFactory;
 import com.denisfesenko.handler.PlainTextHandler;
+import com.denisfesenko.handler.ParagraphHandler;
 import com.denisfesenko.handler.BoldHandler;
 import com.denisfesenko.handler.ImageHandler;
 import com.denisfesenko.handler.BreakHandler;
@@ -129,9 +130,17 @@ public class HtmlToOpenXMLConverter {
      */
     private void traverseDocument(Document document, WordprocessingMLPackage wordMLPackage) {
         List<Node> activeTags = new ArrayList<>();
+        ListNumbering listNumbering = new ListNumbering();
         NodeTraversor.filter(new NodeFilter() {
             private boolean paragraphEnded;
             private Node lastInlineBlock;
+            private P pendingListParagraph;
+            private Node pendingListItem;
+
+            private boolean isBuiltInListItem(Node node) {
+                return "li".equals(node.nodeName()) && ListNumbering.isList(node.parentNode())
+                        && !tagHandlerMap.containsKey("li") && !tagHandlerMap.containsKey(node.parentNode().nodeName());
+            }
 
             private void handleImage(Node node, TagHandler handler) {
                 List<Object> content = wordMLPackage.getMainDocumentPart() == null ? null
@@ -165,7 +174,37 @@ public class HtmlToOpenXMLConverter {
             @Override
             public FilterResult head(Node node, int depth) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
+                if (isBuiltInListItem(node)) {
+                    var properties = RunUtils.getObjectFactory().createPPr();
+                    listNumbering.numberItem(node, properties, wordMLPackage);
+                    RunUtils.createParagraph(wordMLPackage, properties);
+                    pendingListParagraph = RunUtils.getCurrentParagraph(wordMLPackage);
+                    pendingListItem = node;
+                    paragraphEnded = false;
+                    lastInlineBlock = node;
+                }
                 if (tagHandler != null) {
+                    if (node instanceof TextNode && ((TextNode) node).isBlank()
+                            && (ListNumbering.isList(node.parentNode())
+                                || (pendingListItem != null && node.parentNode() == pendingListItem && pendingListParagraph.getContent().isEmpty()))) {
+                        return FilterResult.CONTINUE;
+                    }
+                    if (pendingListItem != null && "p".equals(node.nodeName()) && node.parentNode() == pendingListItem
+                            && pendingListParagraph.getContent().isEmpty()
+                            && lastParagraph(wordMLPackage.getMainDocumentPart().getContent()) == pendingListParagraph
+                            && tagHandler.getClass() == ParagraphHandler.class) {
+                        var content = wordMLPackage.getMainDocumentPart().getContent();
+                        tagHandler.handleTag(node, wordMLPackage);
+                        var paragraph = lastParagraph(content);
+                        if (paragraph.getPPr() == null) paragraph.setPPr(RunUtils.getObjectFactory().createPPr());
+                        paragraph.getPPr().setNumPr(pendingListParagraph.getPPr().getNumPr());
+                        content.remove(content.size() - 2);
+                        pendingListItem = null;
+                        pendingListParagraph = null;
+                        paragraphEnded = false;
+                        lastInlineBlock = node;
+                        return FilterResult.CONTINUE;
+                    }
                     if (paragraphEnded && node instanceof TextNode && ((TextNode) node).isBlank()) {
                         return FilterResult.CONTINUE;
                     }
@@ -231,6 +270,7 @@ public class HtmlToOpenXMLConverter {
             @Override
             public FilterResult tail(Node node, int depth) {
                 activeTags.remove(node);
+                if (isBuiltInListItem(node)) paragraphEnded = true;
                 if (node.nodeName().equals("p") || node == lastInlineBlock) paragraphEnded = true;
                 return FilterResult.CONTINUE;
             }
