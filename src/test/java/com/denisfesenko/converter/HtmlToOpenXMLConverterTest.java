@@ -58,7 +58,7 @@ class HtmlToOpenXMLConverterTest {
 
             XWPFParagraph paragraph = paragraphs.get(0);
             List<XWPFRun> runs = paragraph.getRuns();
-            assertEquals(8, runs.size(), "There should be seven runs");
+            assertEquals(8, runs.size(), "There should be eight runs");
 
             assertRun(runs.get(0), "Hello, ", false, false);
             assertRun(runs.get(1), "World", true, false);
