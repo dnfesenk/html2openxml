@@ -50,7 +50,7 @@ public class TableHandler implements TagHandler {
         this.strictValidation = strictValidation;
     }
 
-    private HtmlToOpenXMLConverter converter;
+    private volatile HtmlToOpenXMLConverter standaloneConverter;
 
     /**
      * This method is called to process the input node and convert it to the corresponding
@@ -62,6 +62,13 @@ public class TableHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
+        handleTag(node, wordMLPackage, standaloneConverter);
+    }
+
+    /**
+     * Converts a table using the converter associated with this invocation.
+     */
+    public void handleTag(Node node, WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
         Element rootNode = (Element) node;
         Element docTable = rootNode.selectFirst("table");
         if (docTable != null) {
@@ -70,7 +77,7 @@ public class TableHandler implements TagHandler {
             int maxCols = getMaxColumns(cellMatrix);
             if (maxCols == 0) return;
             int cellWidthTwips = wordMLPackage.getDocumentModel().getSections().get(0).getPageDimensions().getWritableWidthTwips() / maxCols;
-            Tbl table = createTableWithSettings(cellMatrix, maxCols, cellWidthTwips, docTable, wordMLPackage);
+            Tbl table = createTableWithSettings(cellMatrix, maxCols, cellWidthTwips, docTable, wordMLPackage, converter);
             if ("none".equalsIgnoreCase(ConverterUtils.getStyleProperty(docTable.attr(Constants.STYLE), "border"))) {
                 ConverterUtils.setBorderlessStyle(table);
             }
@@ -89,18 +96,18 @@ public class TableHandler implements TagHandler {
     }
 
     /**
-     * Adds the HtmlToOpenXMLConverter instance to this TableHandler.
+     * Sets the converter used by the two-argument handleTag method.
      *
      * @param converter The HtmlToOpenXMLConverter instance.
      * @return The TableHandler instance.
      */
     public TableHandler addConverter(HtmlToOpenXMLConverter converter) {
-        this.converter = converter;
+        this.standaloneConverter = converter;
         return this;
     }
 
     private Tbl createTableWithSettings(CellWrapper[][] cellMatrix, int maxCols, int cellWidthTwips, Element docTable,
-                                        WordprocessingMLPackage wordMLPackage) {
+                                        WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
         Tbl table = TblFactory.createTable(cellMatrix.length, maxCols, cellWidthTwips);
         TblWidth tableWidth = RunUtils.getObjectFactory().createTblWidth();
         tableWidth.setW(getTableWidthFromStyle(docTable.attr(Constants.STYLE)));
@@ -114,7 +121,7 @@ public class TableHandler implements TagHandler {
             i++;
             int d = 0;
             for (CellWrapper tblCol : tblRow) {
-                processTableCell(tblCol, row, d, wordMLPackage);
+                processTableCell(tblCol, row, d, wordMLPackage, converter);
                 d++;
             }
         }
@@ -184,7 +191,8 @@ public class TableHandler implements TagHandler {
         return span > 1 ? BigInteger.valueOf(span) : null;
     }
 
-    private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex, WordprocessingMLPackage wordMLPackage) {
+    private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex,
+                                  WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
         Tc column = (Tc) row.getContent().get(cellIndex);
         BigInteger colspan = tblCol.getColspan();
         if (!tblCol.getStyle().isBlank() || !tblCol.getMerge().isBlank() || colspan != null) {
