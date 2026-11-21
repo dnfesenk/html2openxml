@@ -34,16 +34,15 @@ Add the following dependency to your `pom.xml`:
 <dependency>
   <groupId>com.denisfesenko</groupId>
   <artifactId>html2openxml</artifactId>
-  <version>2.1.0</version>
+  <version>2.2.0</version>
 </dependency>
 ```
 Or if you're using Gradle, add this to your `build.gradle`:
 ```groovy
-implementation 'com.denisfesenko:html2openxml:2.1.0'
+implementation 'com.denisfesenko:html2openxml:2.2.0'
 ```
 
-Version 2.1.0 is published in Maven Central. See [CHANGELOG.md](CHANGELOG.md) for fixes
-and compatibility notes.
+See [CHANGELOG.md](CHANGELOG.md) for fixes and compatibility notes.
 
 ## Continuous Integration
 
