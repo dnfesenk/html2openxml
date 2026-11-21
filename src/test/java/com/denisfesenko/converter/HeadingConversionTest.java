@@ -51,8 +51,8 @@ class HeadingConversionTest {
     @Test
     void skipsEmptyHeadingsWithoutConsumingAListMarker() throws Exception {
         var doc = new HtmlToOpenXMLConverter().convert(
-                "<h6><span> </span><!-- comment --></h6>"
-                + "<ul><li><h2></h2>Body</li></ul><h3><img alt='Caption'></h3>");
+                "<h6><span>&nbsp;</span><!-- comment --></h6><h5><br></h5>"
+                + "<ul><li><h2>&nbsp;<br></h2>Body</li></ul><h3><img alt='Caption'></h3>");
         var main = doc.getMainDocumentPart();
         var content = main.getContent();
         assertEquals(2, content.size());
@@ -63,6 +63,7 @@ class HeadingConversionTest {
         var heading = (P) content.get(1);
         assertEquals("Caption", TextUtils.getText(heading));
         assertEquals("Heading3", heading.getPPr().getPStyle().getVal());
+        assertNull(main.getStyleDefinitionsPart().getStyleById("Heading5"));
         assertNull(main.getStyleDefinitionsPart().getStyleById("Heading6"));
     }
 

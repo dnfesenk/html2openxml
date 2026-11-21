@@ -6,7 +6,6 @@
 
 - HTML headings now use Word heading styles, which affect formatting and the navigation outline.
   Existing template heading styles are reused, including styles with localized IDs.
-
 - HTML lists now produce native Word numbering. List item paragraphs receive `numPr` and the
   DOCX gains a numbering part. Continuation paragraphs align with the item text and have no
   additional marker. Custom list handlers retain control of the tags they override.

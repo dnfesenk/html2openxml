@@ -145,12 +145,15 @@ public class HtmlToOpenXMLConverter {
             }
 
             private boolean isEmptyHeading(Element heading) {
-                if (heading.hasText()) return false;
-                // Breaks, images, and custom content handlers can emit content without text.
+                boolean hasText = heading.wholeText().codePoints()
+                        .anyMatch(character -> !Character.isWhitespace(character) && !Character.isSpaceChar(character));
+                if (hasText) return false;
+                // Images and other content handlers can emit visible content without text.
                 return heading.getAllElements().stream()
                         .filter(element -> element != heading)
                         .map(element -> tagHandlerMap.get(element.nodeName()))
-                        .noneMatch(handler -> handler != null && !handler.isRepeatable());
+                        .noneMatch(handler -> handler != null && handler.getClass() != BreakHandler.class
+                                && !handler.isRepeatable());
             }
 
             private void indentListContinuation(Node node, P paragraph) {
