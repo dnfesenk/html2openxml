@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- HTML lists now produce native Word numbering. List item paragraphs receive `numPr` and the
+  DOCX gains a numbering part. Continuation paragraphs align with the item text and have no
+  additional marker. Custom list handlers retain control of the tags they override.
+
 ### Fixed
 
 - Converters can share a `TableHandler` without overwriting the converter used for table cells.

@@ -142,6 +142,17 @@ public class HtmlToOpenXMLConverter {
                         && !tagHandlerMap.containsKey("li") && !tagHandlerMap.containsKey(node.parentNode().nodeName());
             }
 
+            private void indentListContinuation(Node node, P paragraph) {
+                for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
+                    if ("li".equals(ancestor.nodeName())) {
+                        if (isBuiltInListItem(ancestor)) {
+                            ListNumbering.indentContinuation(ancestor, paragraph);
+                        }
+                        return;
+                    }
+                }
+            }
+
             private void handleImage(Node node, TagHandler handler) {
                 List<Object> content = wordMLPackage.getMainDocumentPart() == null ? null
                         : wordMLPackage.getMainDocumentPart().getContent();
@@ -162,6 +173,7 @@ public class HtmlToOpenXMLConverter {
                 boolean added = paragraph != null && (paragraph == previousParagraph
                         ? paragraph.getContent().size() > previousParagraphSize : !paragraph.getContent().isEmpty());
                 if (added) {
+                    indentListContinuation(node, paragraph);
                     InlineCss.alignImplicitParagraph(node, paragraph);
                     lastInlineBlock = block;
                     paragraphEnded = false;
@@ -198,7 +210,7 @@ public class HtmlToOpenXMLConverter {
                         var paragraph = lastParagraph(content);
                         if (paragraph.getPPr() == null) paragraph.setPPr(RunUtils.getObjectFactory().createPPr());
                         paragraph.getPPr().setNumPr(pendingListParagraph.getPPr().getNumPr());
-                        content.remove(content.size() - 2);
+                        content.remove(pendingListParagraph);
                         pendingListItem = null;
                         pendingListParagraph = null;
                         paragraphEnded = false;
@@ -227,6 +239,7 @@ public class HtmlToOpenXMLConverter {
                             RunUtils.createParagraph(wordMLPackage, null);
                             paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
                         }
+                        indentListContinuation(node, paragraph);
                         InlineCss.alignImplicitParagraph(node, paragraph);
                         lastInlineBlock = block;
                     }
@@ -261,7 +274,13 @@ public class HtmlToOpenXMLConverter {
                     } else if (tagHandler.isRepeatable()) {
                         activeTags.add(node);
                     } else {
+                        var content = wordMLPackage.getMainDocumentPart().getContent();
+                        P previous = lastParagraph(content);
                         tagHandler.handleTag(node, wordMLPackage);
+                        P paragraph = lastParagraph(content);
+                        if (paragraph != null && paragraph != previous) {
+                            indentListContinuation(node, paragraph);
+                        }
                     }
                 }
                 return FilterResult.CONTINUE;
@@ -270,7 +289,13 @@ public class HtmlToOpenXMLConverter {
             @Override
             public FilterResult tail(Node node, int depth) {
                 activeTags.remove(node);
-                if (isBuiltInListItem(node)) paragraphEnded = true;
+                if (isBuiltInListItem(node)) {
+                    paragraphEnded = true;
+                    if (node == pendingListItem) {
+                        pendingListItem = null;
+                        pendingListParagraph = null;
+                    }
+                }
                 if (node.nodeName().equals("p") || node == lastInlineBlock) paragraphEnded = true;
                 return FilterResult.CONTINUE;
             }

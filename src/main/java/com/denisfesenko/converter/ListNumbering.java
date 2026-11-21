@@ -5,6 +5,7 @@ import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.NumberingDefinitionsPart;
 import org.docx4j.wml.NumberFormat;
+import org.docx4j.wml.P;
 import org.docx4j.wml.PPr;
 import org.jsoup.nodes.Node;
 
@@ -21,12 +22,7 @@ final class ListNumbering {
 
     void numberItem(Node item, PPr properties, WordprocessingMLPackage wordPackage) {
         Node list = item.parentNode();
-        int depth = 0;
-        for (Node ancestor = list.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
-            if (isList(ancestor)) depth++;
-        }
-        // Word numbering supports nine levels per definition.
-        int level = Math.min(depth, 8);
+        int level = level(item);
         BigInteger id = listIds.computeIfAbsent(list, key -> createDefinition(key, level, wordPackage));
         var factory = RunUtils.getObjectFactory();
         var numbering = factory.createPPrBaseNumPr();
@@ -37,6 +33,48 @@ final class ListNumbering {
         numberId.setVal(id);
         numbering.setNumId(numberId);
         properties.setNumPr(numbering);
+    }
+
+    static void indentContinuation(Node item, P paragraph) {
+        var factory = RunUtils.getObjectFactory();
+        var properties = paragraph.getPPr();
+        if (properties == null) {
+            properties = factory.createPPr();
+            paragraph.setPPr(properties);
+        }
+        if (properties.getNumPr() != null) return;
+        var indent = properties.getInd();
+        if (indent == null) {
+            indent = factory.createPPrBaseInd();
+            properties.setInd(indent);
+        }
+        if (indent.getLeft() == null) {
+            indent.setLeft(leftIndent(level(item)));
+        }
+    }
+
+    private static int level(Node item) {
+        int depth = 0;
+        for (Node ancestor = item.parentNode().parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
+            if (isList(ancestor)) depth++;
+        }
+        // Word numbering supports nine levels per definition.
+        return Math.min(depth, 8);
+    }
+
+    private static BigInteger leftIndent(int level) {
+        return BigInteger.valueOf(720L * (level + 1));
+    }
+
+    private static NumberFormat numberFormat(Node list) {
+        if ("ul".equals(list.nodeName())) return NumberFormat.BULLET;
+        switch (list.attr("type")) {
+            case "a": return NumberFormat.LOWER_LETTER;
+            case "A": return NumberFormat.UPPER_LETTER;
+            case "i": return NumberFormat.LOWER_ROMAN;
+            case "I": return NumberFormat.UPPER_ROMAN;
+            default: return NumberFormat.DECIMAL;
+        }
     }
 
     private static BigInteger createDefinition(Node list, int level, WordprocessingMLPackage wordPackage) {
@@ -54,6 +92,7 @@ final class ListNumbering {
         }
 
         boolean ordered = "ol".equals(list.nodeName());
+        NumberFormat numberFormat = numberFormat(list);
         var definition = factory.createNumberingAbstractNum();
         var type = factory.createNumberingAbstractNumMultiLevelType();
         type.setVal("multilevel");
@@ -65,14 +104,14 @@ final class ListNumbering {
             start.setVal(ordered ? orderedStart(list) : BigInteger.ONE);
             entry.setStart(start);
             var format = factory.createNumFmt();
-            format.setVal(ordered ? NumberFormat.DECIMAL : NumberFormat.BULLET);
+            format.setVal(numberFormat);
             entry.setNumFmt(format);
             var text = factory.createLvlLvlText();
             text.setVal(ordered ? "%" + (index + 1) + "." : "•");
             entry.setLvlText(text);
             var properties = factory.createPPr();
             var indent = factory.createPPrBaseInd();
-            indent.setLeft(BigInteger.valueOf(720L * (index + 1)));
+            indent.setLeft(leftIndent(index));
             indent.setHanging(BigInteger.valueOf(360));
             properties.setInd(indent);
             entry.setPPr(properties);
@@ -83,7 +122,7 @@ final class ListNumbering {
 
     private static BigInteger orderedStart(Node list) {
         try {
-            return BigInteger.valueOf(Integer.parseInt(list.attr("start").trim()));
+            return BigInteger.valueOf(Math.max(0, Integer.parseInt(list.attr("start").trim())));
         } catch (NumberFormatException e) {
             return BigInteger.ONE;
         }

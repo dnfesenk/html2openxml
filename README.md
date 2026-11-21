@@ -183,6 +183,10 @@ does not validate arbitrary HTML or all CSS properties.
 - `<u>` - Underline
 - `<sub>` - Subscript
 - `<sup>` - Superscript
+- `<ul>`, `<ol>`, `<li>` - Native Word lists, including nested lists and lists in table cells.
+  Ordered lists support `start` and `type="1|a|A|i|I"`. Negative starts are clamped to zero,
+  and malformed or out-of-range starts default to one. Reversed lists currently use ascending
+  numbering. Nesting deeper than nine levels stays at the ninth Word level.
 - `<table>` - Table; percentage `width` and `style="border:none"` for no borders
 - `<tr>` - Table Row
 - `<td>`, `<th>` - Table cells; `th` does not automatically add bold or centered text
