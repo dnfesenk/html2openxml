@@ -26,6 +26,14 @@ public final class RunUtils {
      */
     private static final ObjectFactory OBJECT_FACTORY = new ObjectFactory();
 
+    /**
+     * Returns the main document's style definitions part, creating it with the built-in
+     * Normal paragraph style if the document has no style definitions part.
+     *
+     * @param wordPackage the document package whose styles to access
+     * @return the existing or newly attached style definitions part
+     * @throws IllegalStateException if a new styles part cannot be created or attached
+     */
     public static StyleDefinitionsPart getOrCreateStyles(WordprocessingMLPackage wordPackage) {
         var main = wordPackage.getMainDocumentPart();
         var styles = main.getStyleDefinitionsPart();
@@ -43,6 +51,16 @@ public final class RunUtils {
         }
     }
 
+    /**
+     * Finds the first style of the requested type whose name matches case-insensitively
+     * and whose ID is nonblank.
+     *
+     * @param styles the style definitions to search
+     * @param type the Word style type, such as {@code paragraph} or {@code character}
+     * @param name the style name to match
+     * @param defaultId the ID to return when there is no matching style with a usable ID
+     * @return the matched style ID or {@code defaultId}
+     */
     public static String findStyleId(StyleDefinitionsPart styles, String type, String name, String defaultId) {
         return styles.getJaxbElement().getStyle().stream()
                 .filter(style -> type.equals(style.getType()) && style.getName() != null)
