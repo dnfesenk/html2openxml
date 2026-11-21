@@ -146,7 +146,7 @@ public class HtmlToOpenXMLConverter {
 
             private boolean isEmptyHeading(Element heading) {
                 boolean hasText = heading.wholeText().codePoints()
-                        .anyMatch(character -> character != '\u200B'
+                        .anyMatch(character -> Character.getType(character) != Character.FORMAT
                                 && !Character.isWhitespace(character) && !Character.isSpaceChar(character));
                 if (hasText) return false;
                 // Images and other content handlers can emit visible content without text.

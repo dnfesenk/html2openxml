@@ -52,6 +52,7 @@ class HeadingConversionTest {
     void skipsEmptyHeadingsWithoutConsumingAListMarker() throws Exception {
         var doc = new HtmlToOpenXMLConverter().convert(
                 "<h6><span>&nbsp;</span><!-- comment --></h6><h5><br></h5><h1>&#8203;</h1>"
+                + "<h4>&#x200C;&#x200D;&#x2060;&#xFEFF;</h4>"
                 + "<ul><li><h2>&nbsp;<br></h2>Body</li></ul><h3><img alt='Caption'></h3>");
         var main = doc.getMainDocumentPart();
         var content = main.getContent();
