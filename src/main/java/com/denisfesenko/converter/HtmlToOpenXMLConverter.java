@@ -198,8 +198,7 @@ public class HtmlToOpenXMLConverter {
                 }
             }
 
-            @Override
-            public FilterResult head(Node node, int depth) {
+            private FilterResult handleNode(Node node, boolean linkedBreak) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (isBuiltInListItem(node)) {
                     var properties = RunUtils.getObjectFactory().createPPr();
@@ -264,6 +263,9 @@ public class HtmlToOpenXMLConverter {
                             RunUtils.createParagraph(wordMLPackage, null);
                             paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
                         }
+                        if (linkedBreak) {
+                            paragraph.getContent().add(RunUtils.getObjectFactory().createR());
+                        }
                         indentListContinuation(node, paragraph);
                         InlineCss.alignImplicitParagraph(node, paragraph);
                         lastInlineBlock = block;
@@ -309,6 +311,27 @@ public class HtmlToOpenXMLConverter {
                     }
                 }
                 return FilterResult.CONTINUE;
+            }
+
+            private final Hyperlinks hyperlinks = new Hyperlinks();
+
+            @Override
+            public FilterResult head(Node node, int depth) {
+                TagHandler handler = tagHandlerMap.get(node.nodeName());
+                Node anchor = !tagHandlerMap.containsKey("a") && (handler instanceof PlainTextHandler
+                        || handler instanceof BreakHandler || handler instanceof ImageHandler)
+                        ? Hyperlinks.enclosingAnchor(node) : null;
+                if (anchor == null || !hyperlinks.hasTarget(anchor)) return handleNode(node, false);
+
+                var content = wordMLPackage.getMainDocumentPart().getContent();
+                P previous = lastParagraph(content);
+                int size = previous == null ? 0 : previous.getContent().size();
+                FilterResult result = handleNode(node, handler.getClass() == BreakHandler.class);
+                P paragraph = lastParagraph(content);
+                if (paragraph != null) {
+                    hyperlinks.wrapContent(anchor, paragraph, paragraph == previous ? size : 0, wordMLPackage);
+                }
+                return result;
             }
 
             @Override

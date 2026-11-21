@@ -1,12 +1,16 @@
 package com.denisfesenko.util;
 
+import org.docx4j.XmlUtils;
+import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.P;
 import org.docx4j.wml.PPr;
 import org.docx4j.wml.R;
 import org.docx4j.wml.RPr;
+import org.docx4j.wml.Style;
 
 import java.util.List;
 import java.util.function.Function;
@@ -21,6 +25,50 @@ public final class RunUtils {
      * The ObjectFactory instance used to create new elements.
      */
     private static final ObjectFactory OBJECT_FACTORY = new ObjectFactory();
+
+    /**
+     * Returns the main document's style definitions part, creating it with the built-in
+     * Normal paragraph style if the document has no style definitions part.
+     *
+     * @param wordPackage the document package whose styles to access
+     * @return the existing or newly attached style definitions part
+     * @throws IllegalStateException if a new styles part cannot be created or attached
+     */
+    public static StyleDefinitionsPart getOrCreateStyles(WordprocessingMLPackage wordPackage) {
+        var main = wordPackage.getMainDocumentPart();
+        var styles = main.getStyleDefinitionsPart();
+        if (styles != null) return styles;
+
+        try {
+            styles = new StyleDefinitionsPart();
+            var definitions = OBJECT_FACTORY.createStyles();
+            definitions.getStyle().add(XmlUtils.deepCopy(StyleDefinitionsPart.getKnownStyles().get("Normal")));
+            styles.setJaxbElement(definitions);
+            main.addTargetPart(styles);
+            return styles;
+        } catch (InvalidFormatException e) {
+            throw new IllegalStateException("Unable to create Word styles part", e);
+        }
+    }
+
+    /**
+     * Finds the first style of the requested type whose name matches case-insensitively
+     * and whose ID is nonblank.
+     *
+     * @param styles the style definitions to search
+     * @param type the Word style type, such as {@code paragraph} or {@code character}
+     * @param name the style name to match
+     * @param defaultId the ID to return when there is no matching style with a usable ID
+     * @return the matched style ID or {@code defaultId}
+     */
+    public static String findStyleId(StyleDefinitionsPart styles, String type, String name, String defaultId) {
+        return styles.getJaxbElement().getStyle().stream()
+                .filter(style -> type.equals(style.getType()) && style.getName() != null)
+                .filter(style -> name.equalsIgnoreCase(style.getName().getVal()))
+                .map(Style::getStyleId)
+                .filter(id -> id != null && !id.isBlank())
+                .findFirst().orElse(defaultId);
+    }
 
     /**
      * Creates a new paragraph element with the given paragraph properties and adds it to the main document part of the
