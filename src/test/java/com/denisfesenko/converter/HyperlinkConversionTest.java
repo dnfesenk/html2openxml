@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class HyperlinkConversionTest {
     @Test
@@ -63,13 +64,16 @@ class HyperlinkConversionTest {
                 + "<a href='https://a.example/?q={x}%20'>Two</a>"
                 + "<a href='https://пример.рф:8443/Москва#часть'>Three</a>"
                 + "<a href='mailto:a@b.c?subject=Hello World'>Four</a>"
+                + "<a href='https://example.org/?d=100%#a#b'>Percent and fragment</a>"
+                + "<a href='https://my_host.example/a&#9;b&#10;c&#13;d'>Underscore and whitespace</a>"
                 + "<a href='https://bad host.example/'>Invalid host</a></p>").getMainDocumentPart();
 
         var links = linksIn((P) main.getContent().get(0));
         assertEquals(List.of("https://a.example/a%20b?q=1%7C2", "https://a.example/?q=%7Bx%7D%20",
                 "https://xn--e1afmkfd.xn--p1ai:8443/%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0"
                         + "#%D1%87%D0%B0%D1%81%D1%82%D1%8C",
-                "mailto:a@b.c?subject=Hello%20World"),
+                "mailto:a@b.c?subject=Hello%20World",
+                "https://example.org/?d=100%25#a%23b", "https://my_host.example/abcd"),
                 links.stream().map(link -> main.getRelationshipsPart().getRelationshipByID(link.getId()).getTarget())
                         .collect(Collectors.toList()));
     }
@@ -128,6 +132,27 @@ class HyperlinkConversionTest {
     }
 
     @Test
+    void reusesTheHyperlinkCharacterStyleFromALocalizedTemplate() throws Exception {
+        var doc = WordprocessingMLPackage.createPackage();
+        var main = doc.getMainDocumentPart();
+        var styles = main.getStyleDefinitionsPart();
+        var localizedStyle = styles.getStyleById("Hyperlink");
+        localizedStyle.setStyleId("a3");
+        localizedStyle.getName().setVal("hYpErLiNk");
+        localizedStyle.getRPr().getColor().setVal("123456");
+        int styleCount = styles.getJaxbElement().getStyle().size();
+
+        new HtmlToOpenXMLConverter().convert("<a href='https://example.org'>Link</a>", doc);
+
+        var link = linksIn((P) main.getContent().get(0)).get(0);
+        var run = (R) XmlUtils.unwrap(link.getContent().get(0));
+        assertEquals("a3", run.getRPr().getRStyle().getVal());
+        assertEquals(styleCount, styles.getJaxbElement().getStyle().size());
+        assertSame(localizedStyle, styles.getStyleById("a3"));
+        assertEquals("123456", localizedStyle.getRPr().getColor().getVal());
+    }
+
+    @Test
     void addsTheHyperlinkStyleToADocumentWithoutStyles() throws Exception {
         var doc = new WordprocessingMLPackage();
         var main = new MainDocumentPart();
@@ -141,6 +166,7 @@ class HyperlinkConversionTest {
 
         var styles = main.getStyleDefinitionsPart();
         var style = styles.getStyleById("Hyperlink");
+        assertNotNull(styles.getStyleById("Normal"));
         assertNotNull(style.getRPr().getColor());
         assertNotNull(style.getRPr().getU());
         var link = linksIn((P) main.getContent().get(0)).get(0);

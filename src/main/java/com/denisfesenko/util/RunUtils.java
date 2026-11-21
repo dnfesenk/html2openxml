@@ -1,12 +1,16 @@
 package com.denisfesenko.util;
 
+import org.docx4j.XmlUtils;
+import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.BooleanDefaultTrue;
 import org.docx4j.wml.ObjectFactory;
 import org.docx4j.wml.P;
 import org.docx4j.wml.PPr;
 import org.docx4j.wml.R;
 import org.docx4j.wml.RPr;
+import org.docx4j.wml.Style;
 
 import java.util.List;
 import java.util.function.Function;
@@ -21,6 +25,32 @@ public final class RunUtils {
      * The ObjectFactory instance used to create new elements.
      */
     private static final ObjectFactory OBJECT_FACTORY = new ObjectFactory();
+
+    public static StyleDefinitionsPart getOrCreateStyles(WordprocessingMLPackage wordPackage) {
+        var main = wordPackage.getMainDocumentPart();
+        var styles = main.getStyleDefinitionsPart();
+        if (styles != null) return styles;
+
+        try {
+            styles = new StyleDefinitionsPart();
+            var definitions = OBJECT_FACTORY.createStyles();
+            definitions.getStyle().add(XmlUtils.deepCopy(StyleDefinitionsPart.getKnownStyles().get("Normal")));
+            styles.setJaxbElement(definitions);
+            main.addTargetPart(styles);
+            return styles;
+        } catch (InvalidFormatException e) {
+            throw new IllegalStateException("Unable to create Word styles part", e);
+        }
+    }
+
+    public static String findStyleId(StyleDefinitionsPart styles, String type, String name, String defaultId) {
+        return styles.getJaxbElement().getStyle().stream()
+                .filter(style -> type.equals(style.getType()) && style.getName() != null)
+                .filter(style -> name.equalsIgnoreCase(style.getName().getVal()))
+                .map(Style::getStyleId)
+                .filter(id -> id != null && !id.isBlank())
+                .findFirst().orElse(defaultId);
+    }
 
     /**
      * Creates a new paragraph element with the given paragraph properties and adds it to the main document part of the

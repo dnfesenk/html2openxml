@@ -196,8 +196,9 @@ does not validate arbitrary HTML or all CSS properties.
   on the first paragraph of a list item can shift its marker.
 - `<a href="…">` - External Word hyperlinks for absolute HTTP, HTTPS, and mailto addresses.
   Spaces and common invalid URL characters are percent-encoded, and internationalized web
-  hosts are converted to ASCII. Relative URLs, fragment-only links, and unsupported schemes
-  remain ordinary text. Link runs use the Word Hyperlink style unless they already have a
+  hosts are converted to ASCII. Tabs and line breaks are removed from addresses. Relative URLs,
+  fragment-only links, and unsupported schemes remain ordinary text. Link runs reuse the
+  template's Hyperlink character style, including localized IDs, unless they already have a
   character style. Explicit inline formatting is preserved.
 - `<table>` - Table; percentage `width` and `style="border:none"` for no borders
 - `<tr>` - Table Row

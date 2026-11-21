@@ -2,7 +2,6 @@ package com.denisfesenko.converter;
 
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.XmlUtils;
-import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.relationships.Relationship;
@@ -21,6 +20,8 @@ import java.util.regex.Pattern;
 final class Hyperlinks {
     private static final String STYLE_ID = "Hyperlink";
     private static final Pattern HOST_AUTHORITY = Pattern.compile("([^@]*@)?([^:@]+)(:[0-9]+)?");
+    private static final Pattern UNDERSCORE_HOST = Pattern.compile("[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*\\.?");
+    private static final String HEX_DIGITS = "0123456789ABCDEFabcdef";
     private static final String URI_PUNCTUATION_TO_ESCAPE = " \"<>^`{|}\\";
     private final Map<Node, Link> links = new IdentityHashMap<>();
 
@@ -83,18 +84,9 @@ final class Hyperlinks {
         if (run.getRPr() == null) run.setRPr(factory.createRPr());
         if (run.getRPr().getRStyle() != null) return;
 
-        var main = wordPackage.getMainDocumentPart();
-        var styles = main.getStyleDefinitionsPart();
-        if (styles == null) {
-            try {
-                styles = new StyleDefinitionsPart();
-                styles.setJaxbElement(factory.createStyles());
-                main.addTargetPart(styles);
-            } catch (InvalidFormatException e) {
-                throw new IllegalStateException("Unable to create Word styles part", e);
-            }
-        }
-        if (styles.getStyleById(STYLE_ID) == null) {
+        var styles = RunUtils.getOrCreateStyles(wordPackage);
+        String styleId = RunUtils.findStyleId(styles, "character", STYLE_ID, STYLE_ID);
+        if (styles.getStyleById(styleId) == null) {
             var style = XmlUtils.deepCopy(StyleDefinitionsPart.getKnownStyles().get(STYLE_ID));
             // The built-in Hyperlink style can reference a character style absent from a template.
             if (style.getBasedOn() != null && styles.getStyleById(style.getBasedOn().getVal()) == null) {
@@ -103,11 +95,12 @@ final class Hyperlinks {
             styles.getJaxbElement().getStyle().add(style);
         }
         var style = factory.createRStyle();
-        style.setVal(STYLE_ID);
+        style.setVal(styleId);
         run.getRPr().setRStyle(style);
     }
 
     private static String allowedTarget(String href) {
+        href = href.replace("\t", "").replace("\n", "").replace("\r", "");
         if (href.codePoints().anyMatch(Character::isISOControl)) return null;
         try {
             URI uri = URI.create(escapePunctuation(href));
@@ -134,6 +127,10 @@ final class Hyperlinks {
         var parts = HOST_AUTHORITY.matcher(authority);
         if (!parts.matches()) return null;
         String host = parts.group(2);
+        // URI treats an ASCII host containing an underscore as a registry authority.
+        if (host.indexOf('_') >= 0 && UNDERSCORE_HOST.matcher(host).matches()) {
+            return uri.toASCIIString();
+        }
         String asciiHost = IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES);
         String raw = uri.toString();
         int hostStart = uri.getScheme().length() + 3 + parts.start(2);
@@ -143,12 +140,17 @@ final class Hyperlinks {
 
     private static String escapePunctuation(String href) {
         StringBuilder escaped = new StringBuilder(href.length());
+        boolean inFragment = false;
         for (int index = 0; index < href.length(); index++) {
             char character = href.charAt(index);
-            if (URI_PUNCTUATION_TO_ESCAPE.indexOf(character) >= 0) {
+            boolean invalidEscape = character == '%' && (index + 2 >= href.length()
+                    || HEX_DIGITS.indexOf(href.charAt(index + 1)) < 0
+                    || HEX_DIGITS.indexOf(href.charAt(index + 2)) < 0);
+            if (invalidEscape || (character == '#' && inFragment) || URI_PUNCTUATION_TO_ESCAPE.indexOf(character) >= 0) {
                 escaped.append('%').append(Integer.toHexString(character).toUpperCase(Locale.ROOT));
             } else {
                 escaped.append(character);
+                if (character == '#') inFragment = true;
             }
         }
         return escaped.toString();
