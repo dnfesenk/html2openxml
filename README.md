@@ -177,6 +177,11 @@ does not validate arbitrary HTML or all CSS properties.
 
 ## Supported HTML Elements
 **html2openxml** supports the following HTML elements:
+- `<h1>`–`<h6>` - Word heading paragraphs. Existing heading styles in DOCX templates
+  supply the formatting, including styles with localized IDs. Headings containing only
+  whitespace, Unicode format characters, or line breaks are skipped. Headings with images,
+  horizontal rules, or page breaks (`<pb>`) are retained and can appear blank in Word's
+  navigation pane.
 - `<p>` - Paragraph; `align="left|right|center|justify"` and `style="text-indent:10px"`
 - `<b>`, `<strong>` - Bold
 - `<i>`, `<em>` - Italic

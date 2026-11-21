@@ -6,6 +6,7 @@ import com.denisfesenko.handler.PlainTextHandler;
 import com.denisfesenko.handler.ParagraphHandler;
 import com.denisfesenko.handler.BoldHandler;
 import com.denisfesenko.handler.ImageHandler;
+import com.denisfesenko.handler.HeadingHandler;
 import com.denisfesenko.handler.BreakHandler;
 import com.denisfesenko.handler.ItalicHandler;
 import com.denisfesenko.handler.FontHandler;
@@ -20,6 +21,7 @@ import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.P;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.NodeFilter;
@@ -142,6 +144,19 @@ public class HtmlToOpenXMLConverter {
                         && !tagHandlerMap.containsKey("li") && !tagHandlerMap.containsKey(node.parentNode().nodeName());
             }
 
+            private boolean isEmptyHeading(Element heading) {
+                boolean hasText = heading.wholeText().codePoints()
+                        .anyMatch(character -> Character.getType(character) != Character.FORMAT
+                                && !Character.isWhitespace(character) && !Character.isSpaceChar(character));
+                if (hasText) return false;
+                // Images and other content handlers can emit visible content without text.
+                return heading.getAllElements().stream()
+                        .filter(element -> element != heading)
+                        .map(element -> tagHandlerMap.get(element.nodeName()))
+                        .noneMatch(handler -> handler != null && handler.getClass() != BreakHandler.class
+                                && !handler.isRepeatable());
+            }
+
             private void indentListContinuation(Node node, P paragraph) {
                 for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
                     if ("li".equals(ancestor.nodeName())) {
@@ -201,10 +216,14 @@ public class HtmlToOpenXMLConverter {
                                 || (pendingListItem != null && node.parentNode() == pendingListItem && pendingListParagraph.getContent().isEmpty()))) {
                         return FilterResult.CONTINUE;
                     }
-                    if (pendingListItem != null && "p".equals(node.nodeName()) && node.parentNode() == pendingListItem
+                    boolean heading = tagHandler instanceof HeadingHandler;
+                    if (heading && isEmptyHeading((Element) node)) {
+                        return FilterResult.SKIP_ENTIRELY;
+                    }
+                    if (pendingListItem != null && node.parentNode() == pendingListItem
+                            && (heading || ("p".equals(node.nodeName()) && tagHandler.getClass() == ParagraphHandler.class))
                             && pendingListParagraph.getContent().isEmpty()
-                            && lastParagraph(wordMLPackage.getMainDocumentPart().getContent()) == pendingListParagraph
-                            && tagHandler.getClass() == ParagraphHandler.class) {
+                            && lastParagraph(wordMLPackage.getMainDocumentPart().getContent()) == pendingListParagraph) {
                         var content = wordMLPackage.getMainDocumentPart().getContent();
                         tagHandler.handleTag(node, wordMLPackage);
                         var paragraph = lastParagraph(content);
@@ -222,6 +241,12 @@ public class HtmlToOpenXMLConverter {
                     }
                     if (tagHandler instanceof ImageHandler && !tagHandler.isRepeatable()) {
                         handleImage(node, tagHandler);
+                        return FilterResult.CONTINUE;
+                    }
+                    if (heading) {
+                        tagHandler.handleTag(node, wordMLPackage);
+                        paragraphEnded = false;
+                        lastInlineBlock = node;
                         return FilterResult.CONTINUE;
                     }
                     if (paragraphEnded && !(tagHandler instanceof TableHandler) && !node.nodeName().equals("p")
@@ -288,6 +313,7 @@ public class HtmlToOpenXMLConverter {
 
             @Override
             public FilterResult tail(Node node, int depth) {
+                if (tagHandlerMap.get(node.nodeName()) instanceof HeadingHandler) paragraphEnded = true;
                 activeTags.remove(node);
                 if (isBuiltInListItem(node)) {
                     paragraphEnded = true;

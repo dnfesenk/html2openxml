@@ -5,6 +5,7 @@ import com.denisfesenko.handler.ImageHandler;
 import com.denisfesenko.handler.BreakHandler;
 import com.denisfesenko.handler.FontHandler;
 import com.denisfesenko.handler.HrHandler;
+import com.denisfesenko.handler.HeadingHandler;
 import com.denisfesenko.handler.ItalicHandler;
 import com.denisfesenko.handler.PageBreakHandler;
 import com.denisfesenko.handler.ParagraphHandler;
@@ -55,6 +56,10 @@ public class TagHandlerFactory {
         tagHandlerMap.put("span", new SpanHandler());
         tagHandlerMap.put("br", new BreakHandler());
         tagHandlerMap.put("pb", new PageBreakHandler());
+        HeadingHandler headingHandler = new HeadingHandler(strictValidation);
+        for (int level = 1; level <= 6; level++) {
+            tagHandlerMap.put("h" + level, headingHandler);
+        }
         tagHandlerMap.put("p", new ParagraphHandler(strictValidation));
         tagHandlerMap.put("b", new BoldHandler());
         tagHandlerMap.put("strong", new BoldHandler());
