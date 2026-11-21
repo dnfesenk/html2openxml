@@ -198,7 +198,7 @@ public class HtmlToOpenXMLConverter {
                 }
             }
 
-            private FilterResult handleNode(Node node) {
+            private FilterResult handleNode(Node node, boolean linkedBreak) {
                 TagHandler tagHandler = tagHandlerMap.get(node.nodeName());
                 if (isBuiltInListItem(node)) {
                     var properties = RunUtils.getObjectFactory().createPPr();
@@ -263,6 +263,9 @@ public class HtmlToOpenXMLConverter {
                             RunUtils.createParagraph(wordMLPackage, null);
                             paragraph = RunUtils.getCurrentParagraph(wordMLPackage);
                         }
+                        if (linkedBreak) {
+                            paragraph.getContent().add(RunUtils.getObjectFactory().createR());
+                        }
                         indentListContinuation(node, paragraph);
                         InlineCss.alignImplicitParagraph(node, paragraph);
                         lastInlineBlock = block;
@@ -318,12 +321,12 @@ public class HtmlToOpenXMLConverter {
                 Node anchor = !tagHandlerMap.containsKey("a") && (handler instanceof PlainTextHandler
                         || handler instanceof BreakHandler || handler instanceof ImageHandler)
                         ? Hyperlinks.enclosingAnchor(node) : null;
-                if (anchor == null) return handleNode(node);
+                if (anchor == null || !hyperlinks.hasTarget(anchor)) return handleNode(node, false);
 
                 var content = wordMLPackage.getMainDocumentPart().getContent();
                 P previous = lastParagraph(content);
                 int size = previous == null ? 0 : previous.getContent().size();
-                FilterResult result = handleNode(node);
+                FilterResult result = handleNode(node, handler.getClass() == BreakHandler.class);
                 P paragraph = lastParagraph(content);
                 if (paragraph != null) {
                     hyperlinks.wrapContent(anchor, paragraph, paragraph == previous ? size : 0, wordMLPackage);

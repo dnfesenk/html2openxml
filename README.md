@@ -194,6 +194,11 @@ does not validate arbitrary HTML or all CSS properties.
   numbering. Nesting deeper than nine levels stays at the ninth Word level.
   Tables inside list items keep their normal table alignment. A positive `text-indent`
   on the first paragraph of a list item can shift its marker.
+- `<a href="…">` - External Word hyperlinks for absolute HTTP, HTTPS, and mailto addresses.
+  Spaces and common invalid URL characters are percent-encoded, and internationalized web
+  hosts are converted to ASCII. Relative URLs, fragment-only links, and unsupported schemes
+  remain ordinary text. Link runs use the Word Hyperlink style unless they already have a
+  character style. Explicit inline formatting is preserved.
 - `<table>` - Table; percentage `width` and `style="border:none"` for no borders
 - `<tr>` - Table Row
 - `<td>`, `<th>` - Table cells; `th` does not automatically add bold or centered text
