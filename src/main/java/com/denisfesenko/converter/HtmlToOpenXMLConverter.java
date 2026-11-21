@@ -21,6 +21,7 @@ import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.P;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.NodeFilter;
@@ -143,6 +144,15 @@ public class HtmlToOpenXMLConverter {
                         && !tagHandlerMap.containsKey("li") && !tagHandlerMap.containsKey(node.parentNode().nodeName());
             }
 
+            private boolean isEmptyHeading(Element heading) {
+                if (heading.hasText()) return false;
+                // Breaks, images, and custom content handlers can emit content without text.
+                return heading.getAllElements().stream()
+                        .filter(element -> element != heading)
+                        .map(element -> tagHandlerMap.get(element.nodeName()))
+                        .noneMatch(handler -> handler != null && !handler.isRepeatable());
+            }
+
             private void indentListContinuation(Node node, P paragraph) {
                 for (Node ancestor = node.parentNode(); ancestor != null; ancestor = ancestor.parentNode()) {
                     if ("li".equals(ancestor.nodeName())) {
@@ -202,10 +212,14 @@ public class HtmlToOpenXMLConverter {
                                 || (pendingListItem != null && node.parentNode() == pendingListItem && pendingListParagraph.getContent().isEmpty()))) {
                         return FilterResult.CONTINUE;
                     }
-                    if (pendingListItem != null && "p".equals(node.nodeName()) && node.parentNode() == pendingListItem
+                    boolean heading = tagHandler instanceof HeadingHandler;
+                    if (heading && isEmptyHeading((Element) node)) {
+                        return FilterResult.SKIP_ENTIRELY;
+                    }
+                    if (pendingListItem != null && node.parentNode() == pendingListItem
+                            && (heading || ("p".equals(node.nodeName()) && tagHandler.getClass() == ParagraphHandler.class))
                             && pendingListParagraph.getContent().isEmpty()
-                            && lastParagraph(wordMLPackage.getMainDocumentPart().getContent()) == pendingListParagraph
-                            && tagHandler.getClass() == ParagraphHandler.class) {
+                            && lastParagraph(wordMLPackage.getMainDocumentPart().getContent()) == pendingListParagraph) {
                         var content = wordMLPackage.getMainDocumentPart().getContent();
                         tagHandler.handleTag(node, wordMLPackage);
                         var paragraph = lastParagraph(content);
@@ -225,7 +239,7 @@ public class HtmlToOpenXMLConverter {
                         handleImage(node, tagHandler);
                         return FilterResult.CONTINUE;
                     }
-                    if (tagHandler instanceof HeadingHandler) {
+                    if (heading) {
                         tagHandler.handleTag(node, wordMLPackage);
                         paragraphEnded = false;
                         lastInlineBlock = node;

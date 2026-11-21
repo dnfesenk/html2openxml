@@ -177,6 +177,8 @@ does not validate arbitrary HTML or all CSS properties.
 
 ## Supported HTML Elements
 **html2openxml** supports the following HTML elements:
+- `<h1>`–`<h6>` - Word heading paragraphs. Existing heading styles in DOCX templates
+  supply the formatting, including styles with localized IDs. Empty headings are skipped.
 - `<p>` - Paragraph; `align="left|right|center|justify"` and `style="text-indent:10px"`
 - `<b>`, `<strong>` - Bold
 - `<i>`, `<em>` - Italic
