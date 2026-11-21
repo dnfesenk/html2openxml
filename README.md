@@ -184,9 +184,11 @@ does not validate arbitrary HTML or all CSS properties.
 - `<sub>` - Subscript
 - `<sup>` - Superscript
 - `<ul>`, `<ol>`, `<li>` - Native Word lists, including nested lists and lists in table cells.
-  Ordered lists support `start` and `type="1|a|A|i|I"`. Negative starts are clamped to zero,
-  and malformed or out-of-range starts default to one. Reversed lists currently use ascending
+  Ordered lists support `start` and `type="1|a|A|i|I"`. Starts are clamped to zero for decimal lists and to one for alphabetic and Roman lists.
+  Malformed or out-of-range starts default to one. Reversed lists currently use ascending
   numbering. Nesting deeper than nine levels stays at the ninth Word level.
+  Tables inside list items keep their normal table alignment. A positive `text-indent`
+  on the first paragraph of a list item can shift its marker.
 - `<table>` - Table; percentage `width` and `style="border:none"` for no borders
 - `<tr>` - Table Row
 - `<td>`, `<th>` - Table cells; `th` does not automatically add bold or centered text

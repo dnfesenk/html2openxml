@@ -84,7 +84,8 @@ class ListConversionTest {
     void validatesStartAndSelectsNumberFormat() throws Exception {
         var definitions = new HtmlToOpenXMLConverter().convert(
                 "<ol start='-2'><li>a</li></ol><ol start='99999999999'><li>b</li></ol>"
-                + "<ol start='bad'><li>c</li></ol><ol type='i' start='4'><li>d</li></ol>")
+                + "<ol start='bad'><li>c</li></ol><ol type='i' start='4'><li>d</li></ol>"
+                + "<ol type='a' start='-2'><li>e</li></ol><ol type='I' start='0'><li>f</li></ol>")
                 .getMainDocumentPart().getNumberingDefinitionsPart().getJaxbElement().getAbstractNum();
         assertEquals(BigInteger.ZERO, definitions.get(0).getLvl().get(0).getStart().getVal());
         assertEquals(BigInteger.ONE, definitions.get(1).getLvl().get(0).getStart().getVal());
@@ -92,6 +93,8 @@ class ListConversionTest {
         var roman = definitions.get(3).getLvl().get(0);
         assertEquals(BigInteger.valueOf(4), roman.getStart().getVal());
         assertEquals(NumberFormat.LOWER_ROMAN, roman.getNumFmt().getVal());
+        assertEquals(BigInteger.ONE, definitions.get(4).getLvl().get(0).getStart().getVal());
+        assertEquals(BigInteger.ONE, definitions.get(5).getLvl().get(0).getStart().getVal());
     }
 
     @Test

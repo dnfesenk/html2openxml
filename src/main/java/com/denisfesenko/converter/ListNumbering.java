@@ -93,6 +93,7 @@ final class ListNumbering {
 
         boolean ordered = "ol".equals(list.nodeName());
         NumberFormat numberFormat = numberFormat(list);
+        BigInteger startValue = ordered ? orderedStart(list, numberFormat) : BigInteger.ONE;
         var definition = factory.createNumberingAbstractNum();
         var type = factory.createNumberingAbstractNumMultiLevelType();
         type.setVal("multilevel");
@@ -101,7 +102,7 @@ final class ListNumbering {
             var entry = factory.createLvl();
             entry.setIlvl(BigInteger.valueOf(index));
             var start = factory.createLvlStart();
-            start.setVal(ordered ? orderedStart(list) : BigInteger.ONE);
+            start.setVal(startValue);
             entry.setStart(start);
             var format = factory.createNumFmt();
             format.setVal(numberFormat);
@@ -120,9 +121,10 @@ final class ListNumbering {
         return part.addAbstractListNumberingDefinition(definition).getNumId();
     }
 
-    private static BigInteger orderedStart(Node list) {
+    private static BigInteger orderedStart(Node list, NumberFormat format) {
+        int minimum = format == NumberFormat.DECIMAL ? 0 : 1;
         try {
-            return BigInteger.valueOf(Math.max(0, Integer.parseInt(list.attr("start").trim())));
+            return BigInteger.valueOf(Math.max(minimum, Integer.parseInt(list.attr("start").trim())));
         } catch (NumberFormatException e) {
             return BigInteger.ONE;
         }
