@@ -13,6 +13,7 @@ import org.docx4j.wml.RPr;
 import org.docx4j.wml.Style;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -68,6 +69,42 @@ public final class RunUtils {
                 .map(Style::getStyleId)
                 .filter(id -> id != null && !id.isBlank())
                 .findFirst().orElse(defaultId);
+    }
+
+    /**
+     * Resolves a built-in style against a template without replacing an incompatible style.
+     *
+     * @param styles the document styles
+     * @param type the required Word style type
+     * @param name the name used to recognize a matching template style
+     * @param defaultId the built-in style ID
+     * @param prepare customization applied to a new copy of the built-in style
+     * @return the ID to use in the document
+     */
+    public static String getOrCreateStyleId(StyleDefinitionsPart styles, String type, String name,
+                                            String defaultId, Consumer<Style> prepare) {
+        String namedId = findStyleId(styles, type, name, null);
+        if (namedId != null) return namedId;
+
+        Style existing = styles.getStyleById(defaultId);
+        if (existing != null && type.equals(existing.getType())) return defaultId;
+
+        String styleId = defaultId;
+        for (int suffix = 1; styles.getStyleById(styleId) != null; suffix++) {
+            styleId = defaultId + "_" + suffix;
+        }
+
+        Style style = XmlUtils.deepCopy(StyleDefinitionsPart.getKnownStyles().get(defaultId));
+        style.setStyleId(styleId);
+        if (style.getBasedOn() != null) {
+            Style base = styles.getStyleById(style.getBasedOn().getVal());
+            if (base == null || !type.equals(base.getType())) {
+                style.setBasedOn(null);
+            }
+        }
+        prepare.accept(style);
+        styles.getJaxbElement().getStyle().add(style);
+        return styleId;
     }
 
     /**

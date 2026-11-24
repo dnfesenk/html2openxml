@@ -3,7 +3,6 @@ package com.denisfesenko.converter;
 import com.denisfesenko.util.RunUtils;
 import org.docx4j.XmlUtils;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.relationships.Relationship;
 import org.docx4j.wml.P;
 import org.docx4j.wml.R;
@@ -85,15 +84,7 @@ final class Hyperlinks {
         if (run.getRPr().getRStyle() != null) return;
 
         var styles = RunUtils.getOrCreateStyles(wordPackage);
-        String styleId = RunUtils.findStyleId(styles, "character", STYLE_ID, STYLE_ID);
-        if (styles.getStyleById(styleId) == null) {
-            var style = XmlUtils.deepCopy(StyleDefinitionsPart.getKnownStyles().get(STYLE_ID));
-            // The built-in Hyperlink style can reference a character style absent from a template.
-            if (style.getBasedOn() != null && styles.getStyleById(style.getBasedOn().getVal()) == null) {
-                style.setBasedOn(null);
-            }
-            styles.getJaxbElement().getStyle().add(style);
-        }
+        String styleId = RunUtils.getOrCreateStyleId(styles, "character", STYLE_ID, STYLE_ID, style -> {});
         var style = factory.createRStyle();
         style.setVal(styleId);
         run.getRPr().setRStyle(style);

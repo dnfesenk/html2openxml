@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -36,6 +37,32 @@ class TableHandlerTest {
         HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter();
         wordMLPackage = WordprocessingMLPackage.createPackage();
         tableHandler.addConverter(converter);
+    }
+
+    @Test
+    void legacyOverrideRunsAndDelegatesToTheActiveConverter() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        TableHandler legacy = new TableHandler() {
+            @Override
+            public void handleTag(Node node, WordprocessingMLPackage target) {
+                calls.incrementAndGet();
+                super.handleTag(node, target);
+            }
+        };
+        HtmlToOpenXMLConverter converter = new HtmlToOpenXMLConverter(Map.of("table", legacy));
+        var document = converter.convert("<table><tr><td>outer"
+                + "<table><tr><td>inner</td></tr></table></td></tr></table>");
+        assertEquals(2, calls.get());
+        String xml = XmlUtils.marshaltoString(document.getMainDocumentPart().getJaxbElement(), true, false);
+        assertTrue(xml.contains("outer"));
+        assertTrue(xml.contains("inner"));
+
+        legacy.addConverter(new HtmlToOpenXMLConverter());
+        Node standalone = Jsoup.parse("<table><tr><td><table><tr><td>standalone</td></tr></table></td></tr></table>")
+                .selectFirst("table");
+        legacy.handleTag(standalone, wordMLPackage);
+        assertEquals(3, calls.get());
+        assertEquals(1, wordMLPackage.getMainDocumentPart().getContent().size());
     }
 
     @Test

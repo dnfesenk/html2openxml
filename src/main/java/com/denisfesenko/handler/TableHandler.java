@@ -21,7 +21,10 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.TreeMap;
 
 /**
  * This class handles the conversion of HTML tables to WordprocessingMLPackage format.
@@ -33,7 +36,11 @@ public class TableHandler implements TagHandler {
      */
     public static final String INHERITED_STYLE_TAG = "html2openxml-inherited-style";
 
+    private static final int MAX_TABLE_GRID_CELLS = 100_000;
+
     private final boolean strictValidation;
+    private final ThreadLocal<HtmlToOpenXMLConverter> invocationConverter = new ThreadLocal<>();
+    private volatile HtmlToOpenXMLConverter standaloneConverter;
 
     /**
      * Creates a standalone handler with the historical strict validation behavior.
@@ -51,11 +58,9 @@ public class TableHandler implements TagHandler {
         this.strictValidation = strictValidation;
     }
 
-    private volatile HtmlToOpenXMLConverter standaloneConverter;
-
     /**
-     * Converts a table directly using the converter configured with {@link #addConverter}.
-     * {@link HtmlToOpenXMLConverter} dispatches to the three-argument overload.
+     * Converts a table using the current invocation's converter or the converter
+     * configured for standalone calls with {@link #addConverter}.
      *
      * @param node          The input HTML node to be processed.
      * @param wordMLPackage The WordprocessingMLPackage instance where the converted content
@@ -63,19 +68,34 @@ public class TableHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        handleTag(node, wordMLPackage, standaloneConverter);
+        HtmlToOpenXMLConverter converter = invocationConverter.get();
+        renderTable(node, wordMLPackage, converter != null ? converter : standaloneConverter);
     }
 
     /**
      * Converts a table using the converter associated with this invocation.
-     * Subclasses registered as custom table handlers should override this overload to
-     * customize dispatch from {@link HtmlToOpenXMLConverter}.
+     * The default implementation delegates to the two-argument overload so existing
+     * subclasses can customize table handling through either overload.
      *
      * @param node the HTML table node
      * @param wordMLPackage the target document
      * @param converter the converter to use for table cell content
      */
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
+        HtmlToOpenXMLConverter previous = invocationConverter.get();
+        invocationConverter.set(converter);
+        try {
+            handleTag(node, wordMLPackage);
+        } finally {
+            if (previous == null) {
+                invocationConverter.remove();
+            } else {
+                invocationConverter.set(previous);
+            }
+        }
+    }
+
+    private void renderTable(Node node, WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
         Element rootNode = (Element) node;
         Element docTable = rootNode.selectFirst("table");
         if (docTable != null) {
@@ -136,24 +156,96 @@ public class TableHandler implements TagHandler {
     }
 
     private int getMaxColumns(CellWrapper[][] cellMatrix) {
-        return Arrays.stream(cellMatrix).mapToInt(cells -> Arrays.stream(cells).mapToInt(cell -> cell.getColspan() == null ? 1 : cell.getColspan().intValueExact()).sum()).max().orElse(0);
+        return Arrays.stream(cellMatrix)
+                .mapToInt(row -> Arrays.stream(row).mapToInt(TableHandler::columnSpan).sum())
+                .max().orElse(0);
     }
 
     private CellWrapper[][] parseTable(Elements trs) {
         CellWrapper[][] cellMatrix = new CellWrapper[trs.size()][];
+        if (trs.isEmpty()) return cellMatrix;
+
+        // TblFactory allocates a rectangular grid, including slots covered by spans.
+        int columnLimit = MAX_TABLE_GRID_CELLS / trs.size();
+        NavigableMap<Integer, VerticalSpan> activeSpans = new TreeMap<>();
+        CellWrapper blank = new CellWrapper().setStyle("").setMerge("");
+        int groupEnd = 0;
         for (int i = 0; i < trs.size(); i++) {
-            Elements tds = trs.get(i).select("> td, > th");
-            cellMatrix[i] = new CellWrapper[tds.size()];
-            for (int j = 0; j < tds.size(); j++) {
-                cellMatrix[i][j] = new CellWrapper().setContent(cellContentWithInheritedStyles(tds.get(j))).setStyle(tds.get(j).attr(Constants.STYLE))
-                        .setMerge(tds.get(j).attr("merge")).setColspan(parseColspan(tds.get(j).attr("colspan")));
-                String merge = cellMatrix[i][j].getMerge();
-                if (!strictValidation && !"restart".equals(merge) && !"continue".equals(merge)) {
-                    cellMatrix[i][j].setMerge("");
-                }
+            Element tr = trs.get(i);
+            if (i == groupEnd) {
+                do {
+                    groupEnd++;
+                } while (groupEnd < trs.size() && trs.get(groupEnd).parent() == tr.parent());
             }
+            int rowIndex = i;
+            activeSpans.values().removeIf(span -> span.endRow <= rowIndex);
+            List<CellWrapper> row = new ArrayList<>();
+            int column = 0;
+            for (Element td : tr.select("> td, > th")) {
+                BigInteger colspan = parseColspan(td.attr("colspan"));
+                int width = colspan == null ? 1 : colspan.intValueExact();
+                Map.Entry<Integer, VerticalSpan> next = activeSpans.ceilingEntry(column);
+                // Keep a cell contiguous even if its colspan would overlap a vertical span.
+                while (next != null && next.getKey() < column + width) {
+                    column = appendContinuation(row, column, next, blank);
+                    next = activeSpans.ceilingEntry(column);
+                }
+                if (column + width > columnLimit) {
+                    throw new IllegalArgumentException("Table exceeds the limit of " + MAX_TABLE_GRID_CELLS + " grid cells");
+                }
+
+                CellWrapper cell = new CellWrapper().setContent(cellContentWithInheritedStyles(td))
+                        .setStyle(td.attr(Constants.STYLE)).setMerge(td.attr("merge")).setColspan(colspan);
+                String merge = cell.getMerge();
+                if (!merge.isBlank() && !"restart".equals(merge) && !"continue".equals(merge)) {
+                    if (strictValidation) {
+                        throw new IllegalArgumentException("Merge value must be restart or continue");
+                    }
+                    cell.setMerge("");
+                }
+                int rowspan = parseSpan(td.attr("rowspan"), 65_534);
+                int remainingRows = groupEnd - i;
+                int height = rowspan == 0 ? remainingRows : Math.min(rowspan, remainingRows);
+                if (height > 1) {
+                    cell.setMerge("restart");
+                    CellWrapper continuation = new CellWrapper().setStyle(cell.getStyle())
+                            .setMerge("continue").setColspan(colspan);
+                    activeSpans.put(column, new VerticalSpan(i + height, continuation));
+                }
+                row.add(cell);
+                column += width;
+            }
+            for (Map.Entry<Integer, VerticalSpan> next : activeSpans.tailMap(column).entrySet()) {
+                column = appendContinuation(row, column, next, blank);
+            }
+            cellMatrix[i] = row.toArray(new CellWrapper[0]);
         }
         return cellMatrix;
+    }
+
+    private static int appendContinuation(List<CellWrapper> row, int column,
+                                          Map.Entry<Integer, VerticalSpan> span, CellWrapper blank) {
+        while (column < span.getKey()) {
+            row.add(blank);
+            column++;
+        }
+        CellWrapper continuation = span.getValue().continuation;
+        row.add(continuation);
+        return column + columnSpan(continuation);
+    }
+
+    private static int columnSpan(CellWrapper cell) {
+        return cell.getColspan() == null ? 1 : cell.getColspan().intValueExact();
+    }
+
+    private static final class VerticalSpan {
+        private final int endRow;
+        private final CellWrapper continuation;
+
+        private VerticalSpan(int endRow, CellWrapper continuation) {
+            this.endRow = endRow;
+            this.continuation = continuation;
+        }
     }
 
     private static String cellContentWithInheritedStyles(Element cell) {
@@ -187,15 +279,20 @@ public class TableHandler implements TagHandler {
     }
 
     private static BigInteger parseColspan(String value) {
+        int span = parseSpan(value, 1000);
+        return span > 1 ? BigInteger.valueOf(span) : null;
+    }
+
+    private static int parseSpan(String value, int limit) {
         String digits = value.trim();
-        if (digits.isEmpty()) return null;
+        if (digits.isEmpty()) return 1;
         int span = 0;
         for (int i = 0; i < digits.length(); i++) {
             char digit = digits.charAt(i);
-            if (digit < '0' || digit > '9') return null;
-            span = Math.min(1000, span * 10 + digit - '0');
+            if (digit < '0' || digit > '9') return 1;
+            span = Math.min(limit, span * 10 + digit - '0');
         }
-        return span > 1 ? BigInteger.valueOf(span) : null;
+        return span;
     }
 
     private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex,
@@ -210,6 +307,7 @@ public class TableHandler implements TagHandler {
                 row.getContent().subList(startIndex, row.getContent().size()).clear();
             }
         }
+        if (tblCol.getContent() == null) return;
         Objects.requireNonNull(converter, "Call addConverter or pass a converter to handleTag");
         List<Object> tempContent = new ArrayList<>(wordMLPackage.getMainDocumentPart().getContent());
         wordMLPackage.getMainDocumentPart().getContent().clear();

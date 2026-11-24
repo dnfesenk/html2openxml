@@ -27,6 +27,56 @@ class ConversionRegressionTest {
         assertEquals("B", text(((Tc) row.getContent().get(1))));
     }
 
+    @Test
+    void rowspanAndColspanKeepCellsAlignedAcrossRows() throws Exception {
+        Tbl table = (Tbl) converter.convert("<table><tr><td>A</td><th rowspan='2' colspan='2'>B</th><td>C</td></tr>"
+                        + "<tr><td>D</td><td>E</td></tr><tr><td colspan='4'>F</td></tr></table>")
+                .getMainDocumentPart().getContent().get(0);
+
+        assertEquals(4, table.getTblGrid().getGridCol().size());
+        Tr first = (Tr) table.getContent().get(0);
+        Tr second = (Tr) table.getContent().get(1);
+        Tr third = (Tr) table.getContent().get(2);
+        assertEquals(3, second.getContent().size());
+        Tc anchor = (Tc) first.getContent().get(1);
+        Tc continuation = (Tc) second.getContent().get(1);
+        assertEquals("restart", anchor.getTcPr().getVMerge().getVal());
+        assertEquals("B", text(anchor));
+        assertEquals("continue", continuation.getTcPr().getVMerge().getVal());
+        assertEquals(anchor.getTcPr().getGridSpan().getVal(), continuation.getTcPr().getGridSpan().getVal());
+        assertEquals(2, continuation.getTcPr().getGridSpan().getVal().intValueExact());
+        assertEquals(1, continuation.getContent().size());
+        assertTrue(((P) continuation.getContent().get(0)).getContent().isEmpty());
+        assertEquals("D", text((Tc) second.getContent().get(0)));
+        assertEquals("E", text((Tc) second.getContent().get(2)));
+        assertEquals("F", text((Tc) third.getContent().get(0)));
+    }
+
+    @Test
+    void rowspanStaysWithinItsRowGroup() throws Exception {
+        for (String rowspan : new String[]{"0", "999999999999999999"}) {
+            Tbl table = (Tbl) converter.convert("<table><thead><tr><th rowspan='" + rowspan + "'>A</th></tr>"
+                            + "<tr></tr></thead><tbody><tr><td rowspan='-1'>B</td></tr><tr><td>C</td></tr></tbody></table>")
+                    .getMainDocumentPart().getContent().get(0);
+
+            assertEquals(4, table.getContent().size());
+            Tc continuation = (Tc) ((Tr) table.getContent().get(1)).getContent().get(0);
+            assertEquals("continue", continuation.getTcPr().getVMerge().getVal());
+            for (int i = 2; i < 4; i++) {
+                Tc cell = (Tc) ((Tr) table.getContent().get(i)).getContent().get(0);
+                assertNull(cell.getTcPr().getVMerge());
+                assertEquals(i == 2 ? "B" : "C", text(cell));
+            }
+        }
+    }
+
+    @Test
+    void includesRowspanContinuationsInTableGridLimit() {
+        String html = "<table><tr><td rowspan='2' colspan='1000'>A</td></tr>"
+                + "<tr><td>B</td></tr>" + "<tr><td>C</td></tr>".repeat(98) + "</table>";
+        assertThrows(IllegalArgumentException.class, () -> converter.convert(html));
+    }
+
     private String text(Tc cell) {
         P paragraph = (P) cell.getContent().get(0);
         R run = (R) paragraph.getContent().get(0);
@@ -156,6 +206,15 @@ class ConversionRegressionTest {
             assertEquals("A", text(first));
             assertEquals("B", text((Tc) row.getContent().get(1)));
         }
+    }
+
+    @Test
+    void rejectsOversizedTableGridWithClampedColspanInLaterRow() {
+        String html = "<table>" + "<tr><td>A</td></tr>".repeat(100)
+                + "<tr><td colspan='999999999999'>B</td></tr></table>";
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> converter.convert(html));
+        assertEquals("Table exceeds the limit of 100000 grid cells", error.getMessage());
     }
 
     @Test
