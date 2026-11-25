@@ -241,7 +241,10 @@ An effective span of more than one row takes precedence over the custom `merge` 
 If a `colspan` would overlap an active `rowspan`, the cell moves right to the next available
 range of columns, and skipped columns outside the active spans are filled with empty cells.
 
-Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
+Table spans follow HTML integer parsing. Leading ASCII whitespace and an optional plus sign are
+accepted, and parsing stops at the first character after the digits. For example, `+2` and
+`2px` both parse as two. Missing, negative, or unparseable values use a span of one.
+For `colspan`, zero also uses one column and values above 1000 are clamped to 1000.
 Conversion throws `IllegalArgumentException` if the number of rows multiplied by the widest row's
 column count (including spans) exceeds 100,000.
 

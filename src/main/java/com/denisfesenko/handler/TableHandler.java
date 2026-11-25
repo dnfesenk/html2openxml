@@ -304,15 +304,22 @@ public class TableHandler implements TagHandler {
     }
 
     private static int parseSpan(String value, int limit) {
-        String digits = value.trim();
-        if (digits.isEmpty()) return 1;
+        int index = 0;
+        while (index < value.length() && " \t\n\f\r".indexOf(value.charAt(index)) >= 0) {
+            index++;
+        }
+        boolean negative = index < value.length() && value.charAt(index) == '-';
+        if (negative || (index < value.length() && value.charAt(index) == '+')) {
+            index++;
+        }
+        int start = index;
         int span = 0;
-        for (int i = 0; i < digits.length(); i++) {
-            char digit = digits.charAt(i);
-            if (digit < '0' || digit > '9') return 1;
+        for (; index < value.length(); index++) {
+            char digit = value.charAt(index);
+            if (digit < '0' || digit > '9') break;
             span = Math.min(limit, span * 10 + digit - '0');
         }
-        return span;
+        return index == start || (negative && span != 0) ? 1 : span;
     }
 
     private void processTableCell(CellWrapper tblCol, Tr row, int cellIndex,

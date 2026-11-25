@@ -53,8 +53,23 @@ class ConversionRegressionTest {
     }
 
     @Test
+    void tableSpansUseTheLeadingHtmlInteger() throws Exception {
+        for (String span : new String[]{" +2", "2px", "2.5"}) {
+            Tbl table = (Tbl) converter.convert("<table><tr><td rowspan='" + span + "' colspan='" + span
+                            + "'>A</td><td>B</td></tr><tr><td>C</td></tr><tr><td>D</td></tr></table>")
+                    .getMainDocumentPart().getContent().get(0);
+
+            assertEquals(3, table.getTblGrid().getGridCol().size(), span);
+            Tc continuation = (Tc) ((Tr) table.getContent().get(1)).getContent().get(0);
+            assertEquals("continue", continuation.getTcPr().getVMerge().getVal(), span);
+            assertEquals(2, continuation.getTcPr().getGridSpan().getVal().intValueExact(), span);
+            assertEquals("D", text((Tc) ((Tr) table.getContent().get(2)).getContent().get(0)), span);
+        }
+    }
+
+    @Test
     void rowspanStaysWithinItsRowGroup() throws Exception {
-        for (String rowspan : new String[]{"0", "999999999999999999"}) {
+        for (String rowspan : new String[]{"0", "-0", "999999999999999999"}) {
             Tbl table = (Tbl) converter.convert("<table><thead><tr><th rowspan='" + rowspan + "'>A</th></tr>"
                             + "<tr></tr></thead><tbody><tr><td rowspan='-1'>B</td></tr><tr><td>C</td></tr></tbody></table>")
                     .getMainDocumentPart().getContent().get(0);
@@ -182,7 +197,7 @@ class ConversionRegressionTest {
 
     @Test
     void invalidColspanFallsBackToOneWithoutLosingCellText() throws Exception {
-        for (String span : new String[]{"0", "-1", "abc", "1.5", "", "1"}) {
+        for (String span : new String[]{"0", "-1", "-2px", "abc", "+", "", "1"}) {
             Tbl table = (Tbl) converter.convert("<table><tr><td colspan='" + span + "'>A</td><td>B</td></tr></table>")
                     .getMainDocumentPart().getContent().get(0);
             assertEquals(2, table.getTblGrid().getGridCol().size(), span);
