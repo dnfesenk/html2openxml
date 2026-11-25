@@ -80,9 +80,11 @@ public class TableHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        TableInvocation current = invocation.get();
-        HtmlToOpenXMLConverter converter = current == null ? null : current.converter;
-        renderTable(node, wordMLPackage, converter != null ? converter : standaloneConverter);
+        renderTable(node, wordMLPackage, invocationConverterOrStandalone(invocation.get()));
+    }
+
+    private HtmlToOpenXMLConverter invocationConverterOrStandalone(TableInvocation current) {
+        return current != null && current.converter != null ? current.converter : standaloneConverter;
     }
 
     /**
@@ -98,7 +100,7 @@ public class TableHandler implements TagHandler {
         TableInvocation previous = invocation.get();
         // A two-argument override can delegate back to this overload for the same table.
         if (previous != null && previous.node == node && previous.target == wordMLPackage) {
-            renderTable(node, wordMLPackage, converter != null ? converter : standaloneConverter);
+            renderTable(node, wordMLPackage, converter != null ? converter : invocationConverterOrStandalone(previous));
             return;
         }
         invocation.set(new TableInvocation(node, wordMLPackage, converter));

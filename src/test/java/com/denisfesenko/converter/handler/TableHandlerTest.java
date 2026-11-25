@@ -88,6 +88,25 @@ class TableHandlerTest {
     }
 
     @Test
+    void legacyOverrideDelegatingWithNullKeepsTheActiveConverter() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        TableHandler legacy = new TableHandler() {
+            @Override
+            public void handleTag(Node node, WordprocessingMLPackage target) {
+                calls.incrementAndGet();
+                handleTag(node, target, null);
+            }
+        };
+        var converter = new HtmlToOpenXMLConverter(Map.of("table", legacy));
+        var document = converter.convert("<table><tr><td>outer"
+                + "<table><tr><td>inner</td></tr></table></td></tr></table>");
+
+        assertEquals(2, calls.get());
+        String xml = XmlUtils.marshaltoString(document.getMainDocumentPart().getJaxbElement(), true, false);
+        assertTrue(xml.contains("inner"));
+    }
+
+    @Test
     void sharedHandlerKeepsTheOuterConverterDuringReentrantConversion() throws Exception {
         TableHandler shared = new TableHandler(false);
         HtmlToOpenXMLConverter inner = new HtmlToOpenXMLConverter(Map.of("table", shared));

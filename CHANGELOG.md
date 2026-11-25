@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Compatibility notes
+
+- `HtmlToOpenXMLConverter` dispatches to the three-argument `TableHandler.handleTag`
+  overload. Its default implementation delegates to the two-argument overload with
+  the active converter, so custom table handlers can override either overload.
+
 ## 2.2.0 — 2026-11-21
 
 ### Added
