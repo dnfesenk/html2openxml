@@ -234,7 +234,19 @@ HTML font-size scale of 1–7. Use explicit `px` for clarity. In 2.0.x, inline C
 Only first-row cell widths define the table column grid. Place percentage widths on that row;
 widths on later rows do not redefine the grid.
 
-Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
+Table cells support HTML `rowspan` together with `colspan`. A `rowspan` of zero extends
+through the remaining rows in the current row group (`thead`, `tbody` or `tfoot`).
+Positive values are capped at 65,534 and stop at the last existing row in the group.
+An effective span of more than one row takes precedence over the custom `merge` setting on that cell.
+If a `colspan` would overlap an active `rowspan`, the cell moves right to the next available
+range of columns, and skipped columns outside the active spans are filled with empty cells.
+
+Table spans follow HTML integer parsing. Leading ASCII whitespace and an optional plus sign are
+accepted, and parsing stops at the first character after the digits. For example, `+2` and
+`2px` both parse as two. Missing, negative, or unparseable values use a span of one.
+For `colspan`, zero also uses one column and values above 1000 are clamped to 1000.
+Conversion throws `IllegalArgumentException` if the number of rows multiplied by the widest row's
+column count (including spans) exceeds 100,000.
 
 Colors in `<font color>`, `<span style="background-color: ...">` and table cells support
 `#RGB`, `#RRGGBB`, `rgb(r, g, b)` and all 148 CSS named colors (case-insensitive).

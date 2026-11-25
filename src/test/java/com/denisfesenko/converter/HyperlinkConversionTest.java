@@ -153,6 +153,52 @@ class HyperlinkConversionTest {
     }
 
     @Test
+    void preservesTemplateStylesWithConflictingHeadingAndHyperlinkIds() throws Exception {
+        var doc = WordprocessingMLPackage.createPackage();
+        var main = doc.getMainDocumentPart();
+        var styles = main.getStyleDefinitionsPart();
+        var definitions = styles.getJaxbElement().getStyle();
+        definitions.remove(styles.getStyleById("Heading1"));
+        definitions.remove(styles.getStyleById("Hyperlink"));
+        var factory = RunUtils.getObjectFactory();
+        var occupiedHeading = factory.createStyle();
+        occupiedHeading.setStyleId("Heading1");
+        occupiedHeading.setType("character");
+        var occupiedLink = factory.createStyle();
+        occupiedLink.setStyleId("Hyperlink");
+        occupiedLink.setType("paragraph");
+        var occupiedSuffix = factory.createStyle();
+        occupiedSuffix.setStyleId("Hyperlink_1");
+        occupiedSuffix.setType("paragraph");
+        definitions.addAll(List.of(occupiedHeading, occupiedLink, occupiedSuffix));
+        int originalCount = definitions.size();
+
+        var converter = new HtmlToOpenXMLConverter();
+        String html = "<h1><a href='https://example.org'>Linked heading</a></h1>";
+        converter.convert(html, doc);
+        converter.convert(html, doc);
+
+        assertSame(occupiedHeading, styles.getStyleById("Heading1"));
+        assertSame(occupiedLink, styles.getStyleById("Hyperlink"));
+        assertSame(occupiedSuffix, styles.getStyleById("Hyperlink_1"));
+        assertEquals(originalCount + 2, definitions.size());
+        for (var element : main.getContent()) {
+            var heading = (P) element;
+            String headingId = heading.getPPr().getPStyle().getVal();
+            assertEquals("Heading1_1", headingId);
+            var headingStyle = styles.getStyleById(headingId);
+            assertEquals("paragraph", headingStyle.getType());
+            assertEquals(0, headingStyle.getPPr().getOutlineLvl().getVal().intValueExact());
+            var run = (R) XmlUtils.unwrap(linksIn(heading).get(0).getContent().get(0));
+            String linkId = run.getRPr().getRStyle().getVal();
+            assertEquals("Hyperlink_2", linkId);
+            var linkStyle = styles.getStyleById(linkId);
+            assertEquals("character", linkStyle.getType());
+            assertNotNull(linkStyle.getRPr().getU());
+        }
+    }
+
+    @Test
     void addsTheHyperlinkStyleToADocumentWithoutStyles() throws Exception {
         var doc = new WordprocessingMLPackage();
         var main = new MainDocumentPart();
