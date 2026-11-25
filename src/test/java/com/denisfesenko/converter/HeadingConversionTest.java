@@ -89,6 +89,25 @@ class HeadingConversionTest {
     }
 
     @Test
+    void treatsTemplateStylesWithoutTypeAsParagraphStyles() throws Exception {
+        var doc = WordprocessingMLPackage.createPackage();
+        var main = doc.getMainDocumentPart();
+        var styles = main.getStyleDefinitionsPart();
+        var heading = styles.getStyleById("Heading1");
+        heading.setType(null);
+        heading.getName().setVal("Custom title");
+        styles.getStyleById("Normal").setType(null);
+        styles.getJaxbElement().getStyle().remove(styles.getStyleById("Heading2"));
+
+        new HtmlToOpenXMLConverter().convert("<h1>First</h1><h2>Second</h2>", doc);
+
+        assertEquals("Heading1", ((P) main.getContent().get(0)).getPPr().getPStyle().getVal());
+        assertSame(heading, styles.getStyleById("Heading1"));
+        assertNull(styles.getStyleById("Heading1_1"));
+        assertEquals("Normal", styles.getStyleById("Heading2").getBasedOn().getVal());
+    }
+
+    @Test
     void createsAStylesPartWithTheHeadingAndItsBaseStyle() throws Exception {
         var doc = new WordprocessingMLPackage();
         var main = new MainDocumentPart();

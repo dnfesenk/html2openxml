@@ -238,6 +238,8 @@ Table cells support HTML `rowspan` together with `colspan`. A `rowspan` of zero 
 through the remaining rows in the current row group (`thead`, `tbody` or `tfoot`).
 Positive values are capped at 65,534 and stop at the last existing row in the group.
 An effective span of more than one row takes precedence over the custom `merge` setting on that cell.
+If a `colspan` would overlap an active `rowspan`, the cell moves right to the next available
+range of columns, and skipped columns outside the active spans are filled with empty cells.
 
 Table `colspan` values above 1000 are clamped to 1000; missing, zero, negative or malformed values use one column.
 Conversion throws `IllegalArgumentException` if the number of rows multiplied by the widest row's

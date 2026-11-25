@@ -64,7 +64,7 @@ public final class RunUtils {
      */
     public static String findStyleId(StyleDefinitionsPart styles, String type, String name, String defaultId) {
         return styles.getJaxbElement().getStyle().stream()
-                .filter(style -> type.equals(style.getType()) && style.getName() != null)
+                .filter(style -> type.equals(styleType(style)) && style.getName() != null)
                 .filter(style -> name.equalsIgnoreCase(style.getName().getVal()))
                 .map(Style::getStyleId)
                 .filter(id -> id != null && !id.isBlank())
@@ -87,7 +87,7 @@ public final class RunUtils {
         if (namedId != null) return namedId;
 
         Style existing = styles.getStyleById(defaultId);
-        if (existing != null && type.equals(existing.getType())) return defaultId;
+        if (existing != null && type.equals(styleType(existing))) return defaultId;
 
         String styleId = defaultId;
         for (int suffix = 1; styles.getStyleById(styleId) != null; suffix++) {
@@ -98,13 +98,18 @@ public final class RunUtils {
         style.setStyleId(styleId);
         if (style.getBasedOn() != null) {
             Style base = styles.getStyleById(style.getBasedOn().getVal());
-            if (base == null || !type.equals(base.getType())) {
+            if (base == null || !type.equals(styleType(base))) {
                 style.setBasedOn(null);
             }
         }
         prepare.accept(style);
         styles.getJaxbElement().getStyle().add(style);
         return styleId;
+    }
+
+    private static String styleType(Style style) {
+        String type = style.getType();
+        return type == null ? "paragraph" : type;
     }
 
     /**

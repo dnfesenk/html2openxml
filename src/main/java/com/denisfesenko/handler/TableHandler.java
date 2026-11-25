@@ -39,8 +39,20 @@ public class TableHandler implements TagHandler {
     private static final int MAX_TABLE_GRID_CELLS = 100_000;
 
     private final boolean strictValidation;
-    private final ThreadLocal<HtmlToOpenXMLConverter> invocationConverter = new ThreadLocal<>();
+    private final ThreadLocal<TableInvocation> invocation = new ThreadLocal<>();
     private volatile HtmlToOpenXMLConverter standaloneConverter;
+
+    private static final class TableInvocation {
+        private final Node node;
+        private final WordprocessingMLPackage target;
+        private final HtmlToOpenXMLConverter converter;
+
+        private TableInvocation(Node node, WordprocessingMLPackage target, HtmlToOpenXMLConverter converter) {
+            this.node = node;
+            this.target = target;
+            this.converter = converter;
+        }
+    }
 
     /**
      * Creates a standalone handler with the historical strict validation behavior.
@@ -68,7 +80,8 @@ public class TableHandler implements TagHandler {
      */
     @Override
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage) {
-        HtmlToOpenXMLConverter converter = invocationConverter.get();
+        TableInvocation current = invocation.get();
+        HtmlToOpenXMLConverter converter = current == null ? null : current.converter;
         renderTable(node, wordMLPackage, converter != null ? converter : standaloneConverter);
     }
 
@@ -82,15 +95,20 @@ public class TableHandler implements TagHandler {
      * @param converter the converter to use for table cell content
      */
     public void handleTag(Node node, WordprocessingMLPackage wordMLPackage, HtmlToOpenXMLConverter converter) {
-        HtmlToOpenXMLConverter previous = invocationConverter.get();
-        invocationConverter.set(converter);
+        TableInvocation previous = invocation.get();
+        // A two-argument override can delegate back to this overload for the same table.
+        if (previous != null && previous.node == node && previous.target == wordMLPackage) {
+            renderTable(node, wordMLPackage, converter != null ? converter : standaloneConverter);
+            return;
+        }
+        invocation.set(new TableInvocation(node, wordMLPackage, converter));
         try {
             handleTag(node, wordMLPackage);
         } finally {
             if (previous == null) {
-                invocationConverter.remove();
+                invocation.remove();
             } else {
-                invocationConverter.set(previous);
+                invocation.set(previous);
             }
         }
     }
