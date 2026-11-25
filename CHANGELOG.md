@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 2.3.0 — 2026-11-25
+
+### Added
+
+- HTML table cells support `rowspan`, including spans that combine with `colspan`.
+  A zero row span extends to the end of the current row group.
+
+### Fixed
+
+- Word headings and hyperlinks reuse compatible template styles, including localized
+  styles. Incompatible styles with the same ID are preserved.
+- Custom table handlers can delegate between overloads without recursive dispatch
+  for the same table, while nested tables still use the active converter.
 
 ### Compatibility notes
 
@@ -9,6 +21,8 @@
   the active converter, so custom table handlers can override either overload.
 - `colspan` now follows HTML integer parsing. Values such as `2px` and `2.5` now
   span two columns, up from one in previous releases.
+- Table conversion rejects grids larger than 100,000 cells, including slots occupied
+  by spans.
 
 ## 2.2.0 — 2026-11-21
 
